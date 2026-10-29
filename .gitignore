@@ -1,0 +1,7 @@
+node_modules/
+.pgtest/
+supabase/.temp/
+supabase/.branches/
+.env
+.env.*
+!.env.example
