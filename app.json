@@ -28,7 +28,7 @@
     "ios": { "bundleIdentifier": "com.operix.mobile", "supportsTablet": false },
     "experiments": { "typedRoutes": true },
     "extra": {
-      "apiUrl": "https://api.operix.example/api/v1"
+      "apiUrl": "https://<REF_DU_PROJET>.supabase.co/functions/v1/api/v1"
     }
   }
 }

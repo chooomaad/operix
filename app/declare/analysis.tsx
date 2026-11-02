@@ -2,7 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { colors } from '@/constants/theme';
 import { ActionCard } from '@/components/ActionCard';
 import { Screen } from '@/components/Screen';
@@ -14,6 +14,7 @@ import { severityLabel } from '@/lib/labels';
 import { aiService } from '@/services/ai';
 import { errorMessage } from '@/services/api';
 import type { Severity } from '@/types/api';
+import { showAlert } from '@/lib/alert';
 
 const LEVELS: Severity[] = ['low', 'medium', 'high', 'critical'];
 
@@ -64,7 +65,7 @@ export default function AnalysisScreen() {
       setOutcome(await submitDeclaration(draft, analysis, severity, analysis.actions));
       router.replace('/declare/success');
     } catch (e) {
-      Alert.alert('Enregistrement impossible', errorMessage(e));
+      showAlert('Enregistrement impossible', errorMessage(e));
     } finally {
       setSaving(false);
     }

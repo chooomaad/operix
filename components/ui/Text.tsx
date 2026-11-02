@@ -13,6 +13,13 @@ const variants: Record<Variant, string> = {
   label: 'font-medium text-[13px] leading-[18px] text-navy',
 };
 
+/** Une classe de COULEUR de texte (text-white, text-green-dark, text-[#AEB7C7]…), pas de taille (text-[12px]). */
+const COLOR_CLASS = /(^|\s)text-(white|black|navy|ink|muted|faint|green|red|orange|blue|\[#)/;
+const VARIANT_COLOR = /\stext-(navy|ink|muted)\b/g;
+
 export function T({ variant = 'body', className = '', ...rest }: TextProps & { variant?: Variant; className?: string }) {
-  return <RNText {...rest} className={`${variants[variant]} ${className}`} />;
+  // Deux couleurs sur un même texte : NativeWind ne garantit pas que la dernière gagne
+  // (texte sombre sur fond navy). La couleur passée par l'écran remplace celle de la variante.
+  const base = COLOR_CLASS.test(className) ? ` ${variants[variant]}`.replace(VARIANT_COLOR, '').trim() : variants[variant];
+  return <RNText {...rest} className={`${base} ${className}`} />;
 }

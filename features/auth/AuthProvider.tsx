@@ -1,5 +1,5 @@
 import * as LocalAuthentication from 'expo-local-authentication';
-import * as SecureStore from 'expo-secure-store';
+import { secureStorage } from '@/lib/secureStorage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { authService } from '@/services/auth';
 import { isNetworkError, setUnauthorizedHandler, tokenStore } from '@/services/api';
@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOutLocal = useCallback(async () => {
     await tokenStore.clear();
-    await SecureStore.deleteItemAsync(SESSION_KEY);
+    await secureStorage.removeItem(SESSION_KEY);
     clearQueryCache();
     setSession(null);
     setStatus('signedOut');
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const [hasHw, enrolled, bioFlag] = await Promise.all([
         LocalAuthentication.hasHardwareAsync(),
         LocalAuthentication.isEnrolledAsync(),
-        SecureStore.getItemAsync(BIOMETRIC_KEY),
+        secureStorage.getItem(BIOMETRIC_KEY),
       ]);
       const token = await tokenStore.load();
       setBiometricAvailable(hasHw && enrolled && bioFlag === '1' && Boolean(token));
@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const restore = useCallback(async () => {
-    const cached = await SecureStore.getItemAsync(SESSION_KEY);
+    const cached = await secureStorage.getItem(SESSION_KEY);
     if (cached) {
       setSession(JSON.parse(cached) as Session);
       setStatus('signedIn');
@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const fresh = await authService.me();
       setSession(fresh);
       setStatus('signedIn');
-      await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(fresh));
+      await secureStorage.setItem(SESSION_KEY, JSON.stringify(fresh));
     } catch (e) {
       if (!isNetworkError(e) || !cached) await signOutLocal();
     }
@@ -84,10 +84,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (matricule: string, pin: string) => {
     const s = await authService.login(matricule, pin);
-    await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(s));
+    await secureStorage.setItem(SESSION_KEY, JSON.stringify(s));
     const [hasHw, enrolled] = await Promise.all([LocalAuthentication.hasHardwareAsync(), LocalAuthentication.isEnrolledAsync()]);
     if (hasHw && enrolled) {
-      await SecureStore.setItemAsync(BIOMETRIC_KEY, '1');
+      await secureStorage.setItem(BIOMETRIC_KEY, '1');
       setBiometricAvailable(true);
     }
     setSession(s);
@@ -107,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Hors-ligne : le jeton local est quand même détruit.
     }
-    await SecureStore.deleteItemAsync(BIOMETRIC_KEY);
+    await secureStorage.removeItem(BIOMETRIC_KEY);
     setBiometricAvailable(false);
     await signOutLocal();
   }, [signOutLocal]);

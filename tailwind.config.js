@@ -3,6 +3,8 @@
 module.exports = {
   content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}', './features/**/*.{ts,tsx}'],
   presets: [require('nativewind/preset')],
+  // L'app est en thème clair forcé (app.json) : sur le web, NativeWind exige le mode 'class'.
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {

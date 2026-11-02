@@ -1,10 +1,11 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { Alert, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { colors } from '@/constants/theme';
 import { T } from '@/components/ui';
 import type { LocalFile } from '@/services/api';
+import { showAlert } from '@/lib/alert';
 
 /**
  * Une photo par déclaration : l'API stocke une image par incident / near-miss
@@ -14,7 +15,7 @@ export function PhotoPicker({ value, onChange }: { value: LocalFile | null; onCh
   const pick = async (source: 'camera' | 'library') => {
     const perm = source === 'camera' ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Accès refusé', "Autorisez l'accès dans les réglages pour joindre une preuve.");
+      showAlert('Accès refusé', "Autorisez l'accès dans les réglages pour joindre une preuve.");
       return;
     }
     const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.6, exif: false };
@@ -22,7 +23,7 @@ export function PhotoPicker({ value, onChange }: { value: LocalFile | null; onCh
     const asset = res.assets?.[0];
     if (res.canceled || !asset) return;
     if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
-      Alert.alert('Photo trop lourde', 'La preuve doit faire moins de 5 Mo.');
+      showAlert('Photo trop lourde', 'La preuve doit faire moins de 5 Mo.');
       return;
     }
     onChange({ uri: asset.uri, name: asset.fileName ?? `preuve-${Date.now()}.jpg`, type: asset.mimeType ?? 'image/jpeg' });

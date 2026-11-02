@@ -42,7 +42,7 @@ export const incidentsService = {
   list: (params: ListParams = {}) => api.get<Paginated<Incident>>('/incidents', { params }).then((r) => r.data),
   get: (id: number) => api.get<Incident>(`/incidents/${id}`).then((r) => r.data),
   create: (payload: NewIncident, image?: LocalFile | null) =>
-    api.post<Incident>('/incidents', toFormData({ ...payload }, { image }), multipart).then((r) => r.data),
+    toFormData({ ...payload }, { image }).then((fd) => api.post<Incident>('/incidents', fd, multipart)).then((r) => r.data),
   /** PUT /incidents/{id} — encadrement uniquement (incidents.update). */
   updateStatus: (id: number, status: RecordStatus) =>
     api.put<Incident>(`/incidents/${id}`, { status }).then((r) => r.data),
@@ -52,7 +52,7 @@ export const nearMissService = {
   list: (params: ListParams = {}) => api.get<Paginated<NearMiss>>('/near-miss', { params }).then((r) => r.data),
   get: (id: number) => api.get<NearMiss>(`/near-miss/${id}`).then((r) => r.data),
   create: (payload: NewNearMiss, image?: LocalFile | null) =>
-    api.post<NearMiss>('/near-miss', toFormData({ ...payload }, { image }), multipart).then((r) => r.data),
+    toFormData({ ...payload }, { image }).then((fd) => api.post<NearMiss>('/near-miss', fd, multipart)).then((r) => r.data),
 };
 
 export interface NewBreach {

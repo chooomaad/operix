@@ -7,7 +7,7 @@ import type { Analysis, EventKind } from '@/types/api';
  */
 export const aiService = {
   analyze: (input: { description: string; location?: string; event_type: EventKind }, image?: LocalFile | null) =>
-    api
-      .post<Analysis>('/ai/incidents/analyze', toFormData({ ...input }, { image }), { ...multipart, timeout: 60_000 })
+    toFormData({ ...input }, { image })
+      .then((fd) => api.post<Analysis>('/ai/incidents/analyze', fd, { ...multipart, timeout: 60_000 }))
       .then((r) => r.data),
 };

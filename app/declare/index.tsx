@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { colors } from '@/constants/theme';
 import { Screen } from '@/components/Screen';
 import { Button, Card, Input, SectionHeader, Select, StatusBadge, T, TopBar } from '@/components/ui';
@@ -17,6 +17,7 @@ import { useQuery } from '@/hooks/useQuery';
 import { errorMessage } from '@/services/api';
 import { dashboardService } from '@/services/dashboard';
 import type { EventKind } from '@/types/api';
+import { showAlert } from '@/lib/alert';
 
 const KINDS: { key: EventKind; label: string; icon: keyof typeof Feather.glyphMap; ability: string }[] = [
   { key: 'incident', label: 'Incident', icon: 'alert-triangle', ability: 'incidents.create' },
@@ -62,7 +63,7 @@ export default function DeclareScreen() {
       setOutcome(await submitDeclaration(draft, null, 'medium', []));
       router.replace('/declare/success');
     } catch (e) {
-      Alert.alert('Enregistrement impossible', errorMessage(e));
+      showAlert('Enregistrement impossible', errorMessage(e));
     } finally {
       setSaving(false);
     }

@@ -1,9 +1,10 @@
 import { Feather } from '@expo/vector-icons';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import { useRef, useState } from 'react';
-import { Alert, Pressable } from 'react-native';
+import { Pressable } from 'react-native';
 import { colors } from '@/constants/theme';
 import { T } from '@/components/ui';
+import { showAlert } from '@/lib/alert';
 
 /**
  * Dictée vocale : reconnaissance vocale de l'appareil (fr-FR), le texte est
@@ -31,7 +32,7 @@ export function VoiceButton({ onText }: { onText: (text: string) => void }) {
     }
     const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Micro indisponible', 'Autorisez le micro pour dicter votre constat.');
+      showAlert('Micro indisponible', 'Autorisez le micro pour dicter votre constat.');
       return;
     }
     ExpoSpeechRecognitionModule.start({ lang: 'fr-FR', interimResults: false, continuous: false });

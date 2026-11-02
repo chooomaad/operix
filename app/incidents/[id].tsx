@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { API_URL } from '@/constants/config';
 import { colors } from '@/constants/theme';
 import { ActionCard } from '@/components/ActionCard';
@@ -19,6 +19,7 @@ import { errorMessage, tokenStore } from '@/services/api';
 import { actionsService } from '@/services/actions';
 import { incidentsService } from '@/services/incidents';
 import type { ActionStatus, RecordStatus } from '@/types/api';
+import { showAlert } from '@/lib/alert';
 
 const NEXT_ACTION: Record<ActionStatus, ActionStatus> = { todo: 'in_progress', in_progress: 'done', done: 'todo' };
 const NEXT_STATUS: Record<RecordStatus, RecordStatus | null> = { open: 'in_progress', in_progress: null, closed: null };
@@ -39,7 +40,7 @@ export default function IncidentDetail() {
       invalidate('actions');
       await Promise.all([acts.refresh(), inc.refresh()]);
     } catch (e) {
-      Alert.alert('Mise à jour impossible', errorMessage(e));
+      showAlert('Mise à jour impossible', errorMessage(e));
     }
   };
 
@@ -48,7 +49,7 @@ export default function IncidentDetail() {
     if (!i) return;
     const next = NEXT_STATUS[i.status];
     if (!next) {
-      Alert.alert('Clôture', 'La clôture exige un rapport de clôture PDF : elle se fait depuis la plateforme web OPERIX.');
+      showAlert('Clôture', 'La clôture exige un rapport de clôture PDF : elle se fait depuis la plateforme web OPERIX.');
       return;
     }
     setBusy(true);
@@ -57,7 +58,7 @@ export default function IncidentDetail() {
       invalidate('incidents');
       await inc.refresh();
     } catch (e) {
-      Alert.alert('Mise à jour impossible', errorMessage(e));
+      showAlert('Mise à jour impossible', errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -66,6 +67,20 @@ export default function IncidentDetail() {
   const downloadPdf = async () => {
     setBusy(true);
     try {
+      if (Platform.OS === 'web') {
+        // Navigateur : pas de système de fichiers natif, on télécharge directement.
+        const res = await fetch(`${API_URL}/reports/incidents/${incidentId}`, {
+          headers: { Authorization: `Bearer ${tokenStore.current() ?? ''}`, Accept: 'application/pdf' },
+        });
+        if (!res.ok) throw new Error(String(res.status));
+        const url = URL.createObjectURL(await res.blob());
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `incident-${inc.data?.reference ?? incidentId}.pdf`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 10_000);
+        return;
+      }
       const target = `${FileSystem.cacheDirectory}${inc.data?.reference ?? 'incident'}.pdf`;
       const res = await FileSystem.downloadAsync(`${API_URL}/reports/incidents/${incidentId}`, target, {
         headers: { Authorization: `Bearer ${tokenStore.current() ?? ''}`, Accept: 'application/pdf' },
@@ -73,7 +88,7 @@ export default function IncidentDetail() {
       if (res.status !== 200) throw new Error(String(res.status));
       await Sharing.shareAsync(res.uri, { mimeType: 'application/pdf' });
     } catch {
-      Alert.alert('Téléchargement impossible', 'La fiche PDF n\'a pas pu être générée.');
+      showAlert('Téléchargement impossible', 'La fiche PDF n\'a pas pu être générée.');
     } finally {
       setBusy(false);
     }
@@ -122,7 +137,7 @@ export default function IncidentDetail() {
             <View className="overflow-hidden rounded-2xl border border-border">
               <Image source={{ uri: i.image_url }} style={{ width: '100%', aspectRatio: 4 / 3 }} contentFit="cover" transition={150} />
               <View className="bg-surface px-4 py-2.5">
-                <T variant="caption">Ajoutée le {formatDateTime(i.created_at)}</T>
+                <T variant="caption">Ajoutée : {formatDateTime(i.created_at)}</T>
               </View>
             </View>
           ) : (

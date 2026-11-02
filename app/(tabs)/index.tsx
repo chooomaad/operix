@@ -83,7 +83,7 @@ export default function HomeScreen() {
               <ProgressBar value={treated} color={good ? colors.green : colors.orange} />
             </View>
             <View className="mt-3 flex-row items-center justify-between">
-              <T variant="caption">Données au {formatDateTime(summary.data?.generated_at)}</T>
+              <T variant="caption">Mis à jour : {formatDateTime(summary.data?.generated_at)}</T>
               <T variant="caption" className="font-semibold text-green-dark">
                 Synchronisé
               </T>

@@ -1,14 +1,13 @@
 # OPERIX Mobile
 
-Application terrain HSSE (Expo / React Native / TypeScript) branchée sur **operix-api**.
+Application terrain HSSE (Expo / React Native / TypeScript) branchée sur **operix-supabase** (backend Supabase).
 « Report • Understand • Prevent »
 
 ## Démarrer
 
 ```bash
 npm install
-npx expo install --fix          # aligne les versions natives sur le SDK Expo installé
-cp .env.example .env            # EXPO_PUBLIC_API_URL=http://<ip-du-poste>:8000/api/v1
+cp .env.example .env            # EXPO_PUBLIC_API_URL=https://<REF>.supabase.co/functions/v1/api/v1
 npx expo prebuild && npx expo run:android
 ```
 
@@ -17,16 +16,14 @@ utiliser un **development build**, pas Expo Go.
 
 APK de démonstration : `npm run build:apk` (EAS, profil `preview`).
 
-## Côté serveur (operix-api)
+Version navigateur (démo sur ordinateur, recette) : `npx expo start --web`. Le jeton y est
+gardé dans le stockage du navigateur au lieu du coffre sécurisé du téléphone.
 
-```bash
-composer update anthropic-ai/sdk   # dépendance ajoutée au composer.json
-php artisan migrate                # table incident_actions + colonne ai_analysis
-# .env : ANTHROPIC_API_KEY=...     (vide = moteur de règles, signalé dans l'app)
-php artisan test --filter=IncidentAiActionsTest
-```
+## Côté serveur
 
-Comptes démo (DemoTenantSeeder) : `DEMO-AGT-001` / `DEMO-SUP-001` / `DEMO-HSE-001`, PIN `Demo@2026`.
+Le backend est **operix-supabase** (Supabase : Postgres, Auth, Storage, Edge Function `api`).
+Il sert les mêmes routes `/api/v1` que l'ancienne API Laravel : voir son README pour le
+déploiement. Comptes démo : `DEMO-AGT-001` / `DEMO-SUP-001` / `DEMO-HSE-001`, PIN `Demo@2026`.
 
 ## Architecture
 
@@ -42,7 +39,7 @@ Comptes démo (DemoTenantSeeder) : `DEMO-AGT-001` / `DEMO-SUP-001` / `DEMO-HSE-0
 
 ## Endpoints utilisés
 
-Tous existants dans `routes/api.php`, sauf les trois marqués ★ (ajoutés) :
+Servis par l'Edge Function `api` d'operix-supabase (identiques à l'ancienne API Laravel) :
 
 - `POST /auth/login` (`platform: mobile`), `GET /auth/me`, `POST /auth/logout`
 - `GET /dashboard`, `/dashboard/recent-activity`, `/dashboard/top-zones`, `/dashboard/incident-stats`, `/safety-tracker` (encadrement)

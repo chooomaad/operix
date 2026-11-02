@@ -1,5 +1,6 @@
 import axios, { AxiosError, isAxiosError } from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
+import { secureStorage } from '@/lib/secureStorage';
 import { API_URL, REQUEST_TIMEOUT_MS } from '@/constants/config';
 
 const TOKEN_KEY = 'operix.token';
@@ -9,16 +10,16 @@ let onUnauthorized: (() => void) | null = null;
 
 export const tokenStore = {
   async load(): Promise<string | null> {
-    memoryToken = await SecureStore.getItemAsync(TOKEN_KEY);
+    memoryToken = await secureStorage.getItem(TOKEN_KEY);
     return memoryToken;
   },
   async save(token: string): Promise<void> {
     memoryToken = token;
-    await SecureStore.setItemAsync(TOKEN_KEY, token);
+    await secureStorage.setItem(TOKEN_KEY, token);
   },
   async clear(): Promise<void> {
     memoryToken = null;
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    await secureStorage.removeItem(TOKEN_KEY);
   },
   current: (): string | null => memoryToken,
 };
@@ -70,14 +71,24 @@ export interface LocalFile {
   type: string;
 }
 
-export function toFormData(fields: Record<string, string | number | null | undefined>, files: Record<string, LocalFile | null | undefined> = {}): FormData {
+export async function toFormData(
+  fields: Record<string, string | number | null | undefined>,
+  files: Record<string, LocalFile | null | undefined> = {},
+): Promise<FormData> {
   const fd = new FormData();
   for (const [k, v] of Object.entries(fields)) {
     if (v !== null && v !== undefined && v !== '') fd.append(k, String(v));
   }
   for (const [k, f] of Object.entries(files)) {
-    // React Native accepte { uri, name, type } comme Blob : le typage DOM l'ignore.
-    if (f) fd.append(k, f as unknown as Blob);
+    if (!f) continue;
+    if (Platform.OS === 'web') {
+      // Navigateur : l'URI (blob: ou data:) est relue en vrai fichier.
+      const blob = await (await fetch(f.uri)).blob();
+      fd.append(k, new File([blob], f.name, { type: f.type || blob.type }));
+    } else {
+      // React Native accepte { uri, name, type } comme Blob : le typage DOM l'ignore.
+      fd.append(k, f as unknown as Blob);
+    }
   }
   return fd;
 }

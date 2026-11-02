@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
-import { Alert, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { colors } from '@/constants/theme';
 import { Screen } from '@/components/Screen';
 import { Avatar, Button, Card, KeyValue, SectionHeader, StatusBadge, T, TopBar } from '@/components/ui';
@@ -8,6 +8,7 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { useUnreadCount } from '@/hooks/useUnread';
 import { roleLabel } from '@/lib/labels';
 import { formatDateTime } from '@/lib/format';
+import { confirmAction } from '@/lib/alert';
 
 const LINKS: { href: Href; icon: keyof typeof Feather.glyphMap; label: string }[] = [
   { href: '/notifications', icon: 'bell', label: 'Notifications' },
@@ -21,10 +22,7 @@ export default function ProfileScreen() {
   const u = session?.user;
 
   const confirmLogout = () =>
-    Alert.alert('Déconnexion', 'Fermer la session sur cet appareil ?', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Se déconnecter', style: 'destructive', onPress: () => void logout() },
-    ]);
+    confirmAction('Déconnexion', 'Fermer la session sur cet appareil ?', 'Se déconnecter', () => void logout());
 
   return (
     <Screen header={<TopBar title="Profil" unread={unread} />} tabBarSpace>

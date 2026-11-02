@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable } from 'react-native';
+import { Pressable } from 'react-native';
 import { ActionCard } from '@/components/ActionCard';
 import { FilterChips } from '@/components/FilterChips';
 import { ListScreen } from '@/components/ListScreen';
@@ -10,6 +10,7 @@ import { useQuery } from '@/hooks/useQuery';
 import { errorMessage } from '@/services/api';
 import { actionsService } from '@/services/actions';
 import type { ActionStatus } from '@/types/api';
+import { showAlert } from '@/lib/alert';
 
 type Filter = 'all' | ActionStatus;
 const FILTERS: { key: Filter; label: string }[] = [
@@ -30,7 +31,7 @@ export default function ActionsScreen() {
       await actionsService.setStatus(incidentId, id, NEXT[s]);
       await q.refresh();
     } catch (e) {
-      Alert.alert('Mise à jour impossible', errorMessage(e));
+      showAlert('Mise à jour impossible', errorMessage(e));
     }
   };
 
