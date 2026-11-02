@@ -98,6 +98,19 @@ anti force brute. Requiert les binaires PostgreSQL 16 (`PGBIN` pour un autre che
 Avec Docker, `npx supabase start` puis `npx supabase functions serve api --no-verify-jwt`
 lance la pile Supabase complète.
 
+### Brancher l'app mobile sur le backend local
+
+```bash
+tests/db_reset.sh                                                         # base + données démo
+npx deno run -A --config supabase/functions/api/deno.json tests/dev_server.ts
+```
+
+Le serveur imite les URLs d'un projet Supabase sur le port 54321 (photos comprises). Dans
+`operix-mobile/.env` : `EXPO_PUBLIC_API_URL=http://<IP_DU_PC>:54321/functions/v1/api/v1`
+(téléphone sur le même Wi-Fi), ou `http://127.0.0.1:54321/...` pour `npx expo start --web`.
+En HTTP clair, Android bloque les requêtes dans un build de production : utiliser un build
+de développement, ou le projet Supabase en ligne (HTTPS).
+
 ## Écarts assumés avec l'API Laravel
 
 - **Périmètre mobile uniquement** : RH, permis de travail, formations, visiteurs, environnement,
