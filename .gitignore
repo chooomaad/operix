@@ -5,3 +5,4 @@ supabase/.branches/
 .env
 .env.*
 !.env.example
+supabase/functions/**/deno.lock

@@ -82,6 +82,39 @@ au mobile dans `abilities`.
 - Connexion limitée à 5 tentatives par minute et par IP ; analyse IA à 20 par minute.
 - Photos dans un bucket privé ; la clé Claude n'est jamais envoyée à l'application.
 
+## Tester sur un téléphone Android en USB, tout en local (Windows)
+
+Prérequis sur le PC : **Node.js 20+**, **Docker Desktop** (démarré), **Android Studio**
+(SDK). Sur le téléphone : options développeur → **Débogage USB** activé, câble branché.
+
+**Terminal 1 : le backend** (dossier `operix-supabase`)
+
+```powershell
+npm install
+copy supabase\functions\.env.example supabase\functions\.env
+npx supabase start                  # 1re fois : télécharge les images Docker (~5 min)
+npx supabase db reset               # tables + comptes démo (PIN Demo@2026)
+npx supabase functions serve api --no-verify-jwt
+```
+
+**Terminal 2 : le câble USB**
+
+```powershell
+adb devices                          # le téléphone doit apparaître en « device »
+adb reverse tcp:54321 tcp:54321      # le téléphone joint le PC via localhost (à refaire après chaque rebranchement)
+```
+
+**Terminal 3 : l'app** (dossier `operix-mobile`, de préférence dans un chemin court comme `C:\dev\`)
+
+```powershell
+Set-Content .env "EXPO_PUBLIC_API_URL=http://localhost:54321/functions/v1/api/v1" -Encoding ascii
+npm install
+npx expo run:android                 # 1er build ~10-15 min, puis l'app s'ouvre sur le téléphone
+```
+
+Connexion : `DEMO-AGT-001` / `Demo@2026` (agent) ou `DEMO-SUP-001` (superviseur).
+Studio Supabase local (pour voir les tables, les photos) : http://localhost:54323.
+
 ## Tester en local (sans Docker)
 
 ```bash

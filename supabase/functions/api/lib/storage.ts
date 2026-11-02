@@ -12,6 +12,15 @@ function base(): string {
   return url.replace(/\/$/, "");
 }
 
+/**
+ * Adresse vue par le TÉLÉPHONE pour les liens de photos. En production, c'est
+ * SUPABASE_URL. En local (`supabase functions serve`), SUPABASE_URL vaut une
+ * adresse interne à Docker (http://kong:8000) : OPERIX_PUBLIC_URL la remplace.
+ */
+function publicBase(): string {
+  return (Deno.env.get("OPERIX_PUBLIC_URL") || base()).replace(/\/$/, "");
+}
+
 function serviceKey(): string {
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY manquant");
@@ -73,7 +82,7 @@ export async function signedUrls(paths: (string | null | undefined)[]): Promise<
     if (!res.ok) throw new Error(`Storage sign ${res.status}: ${await res.text()}`);
     const items = (await res.json()) as { path: string; signedURL: string | null; error: string | null }[];
     for (const it of items) {
-      if (it.signedURL) out.set(it.path, `${base()}/storage/v1${it.signedURL}`);
+      if (it.signedURL) out.set(it.path, `${publicBase()}/storage/v1${it.signedURL}`);
     }
   } catch (e) {
     // Une photo indisponible ne doit pas empêcher d'afficher l'incident.
