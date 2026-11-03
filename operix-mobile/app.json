@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "OPERIX",
+    "slug": "operix-mobile",
+    "scheme": "operix",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "backgroundColor": "#F7F8FC",
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font",
+      ["expo-splash-screen", { "backgroundColor": "#F7F8FC", "imageWidth": 120 }],
+      ["expo-camera", { "cameraPermission": "OPERIX utilise la caméra pour photographier les preuves terrain." }],
+      ["expo-image-picker", { "photosPermission": "OPERIX accède à vos photos pour joindre une preuve à une déclaration." }],
+      ["expo-location", { "locationWhenInUsePermission": "OPERIX géolocalise les événements déclarés." }],
+      ["expo-local-authentication", { "faceIDPermission": "Connexion biométrique OPERIX." }],
+      ["expo-speech-recognition", { "microphonePermission": "OPERIX transcrit votre constat vocal.", "speechRecognitionPermission": "OPERIX transcrit votre constat vocal." }],
+      "expo-notifications"
+    ],
+    "android": {
+      "package": "com.operix.mobile",
+      "adaptiveIcon": { "backgroundColor": "#0F1B2D" },
+      "permissions": ["CAMERA", "ACCESS_FINE_LOCATION", "RECORD_AUDIO", "USE_BIOMETRIC"]
+    },
+    "ios": { "bundleIdentifier": "com.operix.mobile", "supportsTablet": false },
+    "experiments": { "typedRoutes": true },
+    "extra": {
+      "apiUrl": "https://<REF_DU_PROJET>.supabase.co/functions/v1/api/v1"
+    }
+  }
+}
