@@ -12,7 +12,7 @@
       "expo-router",
       "expo-secure-store",
       "expo-font",
-      ["expo-splash-screen", { "backgroundColor": "#F7F8FC", "imageWidth": 120 }],
+      ["expo-splash-screen", { "image": "./assets/splash-icon.png", "backgroundColor": "#F7F8FC", "imageWidth": 120 }],
       ["expo-camera", { "cameraPermission": "OPERIX utilise la caméra pour photographier les preuves terrain." }],
       ["expo-image-picker", { "photosPermission": "OPERIX accède à vos photos pour joindre une preuve à une déclaration." }],
       ["expo-location", { "locationWhenInUsePermission": "OPERIX géolocalise les événements déclarés." }],
