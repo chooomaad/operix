@@ -1,0 +1,16 @@
+{
+  "name": "operix-supabase",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend OPERIX (application mobile HSSE) sur Supabase : Postgres + Storage + Edge Function api.",
+  "scripts": {
+    "test": "deno test -A --config supabase/functions/api/deno.json tests/api_test.ts",
+    "check": "cd supabase/functions/api && deno check index.ts",
+    "db:push": "supabase db push",
+    "deploy": "supabase functions deploy api --no-verify-jwt"
+  },
+  "devDependencies": {
+    "deno": "^2.9.6",
+    "supabase": "^2.122.0"
+  }
+}
