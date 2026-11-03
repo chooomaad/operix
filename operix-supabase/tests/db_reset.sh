@@ -8,6 +8,11 @@ PGBIN="${PGBIN:-/usr/lib/postgresql/16/bin}"
 PGDATA="${PGDATA:-$ROOT/.pgtest/data}"
 PGPORT="${PGPORT:-54329}"
 DB=operix_test
+PGOPTIONS="-p $PGPORT"
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) ;;
+  *) PGOPTIONS="$PGOPTIONS -k /tmp" ;;
+esac
 
 mkdir -p "$(dirname "$PGDATA")"
 # PostgreSQL refuse de tourner en root : on passe par l'utilisateur système `postgres`.
@@ -17,7 +22,7 @@ if [ ! -d "$PGDATA" ]; then
   as_pg "$PGBIN/initdb" -D "$PGDATA" -U postgres --auth=trust >/dev/null
 fi
 if ! as_pg "$PGBIN/pg_ctl" -D "$PGDATA" status >/dev/null 2>&1; then
-  as_pg "$PGBIN/pg_ctl" -D "$PGDATA" -o "-p $PGPORT -k /tmp" -l "$(dirname "$PGDATA")/pg.log" start >/dev/null
+  as_pg "$PGBIN/pg_ctl" -D "$PGDATA" -o "$PGOPTIONS" -l "$(dirname "$PGDATA")/pg.log" start >/dev/null
   sleep 1
 fi
 

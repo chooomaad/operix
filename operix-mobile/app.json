@@ -4,15 +4,15 @@
     "slug": "operix-mobile",
     "scheme": "operix",
     "version": "1.0.0",
+    "icon": "./assets/operix-app-icon.png",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "backgroundColor": "#F7F8FC",
     "plugins": [
       "expo-router",
       "expo-secure-store",
       "expo-font",
-      ["expo-splash-screen", { "image": "./assets/splash-icon.png", "backgroundColor": "#F7F8FC", "imageWidth": 120 }],
+      ["expo-splash-screen", { "image": "./assets/operix-logo.png", "backgroundColor": "#F7F8FC", "imageWidth": 220 }],
       ["expo-camera", { "cameraPermission": "OPERIX utilise la caméra pour photographier les preuves terrain." }],
       ["expo-image-picker", { "photosPermission": "OPERIX accède à vos photos pour joindre une preuve à une déclaration." }],
       ["expo-location", { "locationWhenInUsePermission": "OPERIX géolocalise les événements déclarés." }],
@@ -22,7 +22,10 @@
     ],
     "android": {
       "package": "com.operix.mobile",
-      "adaptiveIcon": { "backgroundColor": "#0F1B2D" },
+      "adaptiveIcon": {
+        "backgroundColor": "#F7F8FC",
+        "foregroundImage": "./assets/operix-adaptive-foreground.png"
+      },
       "permissions": ["CAMERA", "ACCESS_FINE_LOCATION", "RECORD_AUDIO", "USE_BIOMETRIC"]
     },
     "ios": { "bundleIdentifier": "com.operix.mobile", "supportsTablet": false },

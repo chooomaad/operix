@@ -20,7 +20,8 @@ function assertMatch(actual: string, re: RegExp) {
   if (!re.test(actual)) throw new Error(`« ${actual} » ne correspond pas à ${re}`);
 }
 
-const ROOT = new URL("..", import.meta.url).pathname;
+const ROOT = decodeURIComponent(new URL("..", import.meta.url).pathname)
+  .replace(/^\/([A-Za-z]:\/)/, "$1");
 
 // ── Base de test ────────────────────────────────────────────────────────────
 const reset = await new Deno.Command("bash", { args: [`${ROOT}tests/db_reset.sh`], stdout: "piped", stderr: "piped" }).output();
@@ -109,7 +110,7 @@ const PNG = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAA
 const year = new Date().getUTCFullYear();
 const today = new Date().toISOString().slice(0, 10);
 
-let agent = "", supervisor = "", hse = "";
+let agent = "", supervisor = "", hse = "", admin = "";
 let incidentId = 0;
 
 Deno.test({
@@ -134,6 +135,7 @@ Deno.test({
       agent = ok.data.token;
       supervisor = await login("DEMO-SUP-001");
       hse = await login("DEMO-HSE-001");
+      admin = await login("DEMO-ADM-001");
     });
 
     await t.step("Sans jeton → 401 ; route inconnue → 404 ; /auth/me", async () => {
@@ -396,9 +398,89 @@ Deno.test({
       await Deno.writeFile(`${ROOT}.pgtest/incident.pdf`, pdf.data);
     });
 
+    await t.step("Administration utilisateurs : autorisation, création, recherche, édition et statut", async () => {
+      assertEquals((await call("GET", "/admin/users")).status, 401);
+      assertEquals((await call("GET", "/admin/users", { token: agent })).status, 403);
+      assertEquals((await call("GET", "/admin/sites", { token: agent })).status, 403);
+      assertEquals((await call("POST", "/admin/users", { token: agent, json: {} })).status, 403);
+
+      const admins = await call("GET", "/admin/users?role=company_admin", { token: admin });
+      assertEquals(admins.status, 200);
+      assertEquals(admins.data.meta.total, 1);
+      assertEquals((await call("PUT", `/admin/users/${admins.data.data[0].id}`, {
+        token: admin,
+        json: { is_active: false },
+      })).status, 409);
+
+      const sites = await call("GET", "/admin/sites", { token: admin });
+      assertEquals(sites.status, 200);
+      assert(sites.data.data.some((site: { name: string }) => site.name === "Nouakchott"));
+      const siteId = sites.data.data[0].id as number;
+      const payload = {
+        first_name: "Ahmed",
+        last_name: "Mohamed",
+        matricule: "MAT-0001",
+        pin: "Test@2026",
+        pin_confirmation: "Test@2026",
+        role: "agent",
+        site_id: siteId,
+        is_active: true,
+      };
+      const mismatch = await call("POST", "/admin/users", { token: admin, json: { ...payload, pin_confirmation: "different" } });
+      assertEquals(mismatch.status, 422);
+      const shortPin = await call("POST", "/admin/users", {
+        token: admin,
+        json: { ...payload, pin: "123", pin_confirmation: "123" },
+      });
+      assertEquals(shortPin.status, 422);
+
+      const created = await call("POST", "/admin/users", { token: admin, json: payload });
+      assertEquals(created.status, 201, JSON.stringify(created.data));
+      assertEquals(created.data.first_name, "Ahmed");
+      assertEquals(created.data.last_name, "Mohamed");
+      assertEquals(created.data.role, "agent");
+      assertEquals(created.data.site.name, "Nouakchott");
+      assert(!("pin" in created.data) && !("pin_hash" in created.data));
+
+      const duplicate = await call("POST", "/admin/users", { token: admin, json: payload });
+      assertEquals(duplicate.status, 409);
+      assertEquals((await call("POST", "/auth/login", { json: { matricule: "MAT-0001", pin: "wrong-pin" } })).status, 401);
+      const createdLogin = await call("POST", "/auth/login", { json: { matricule: "MAT-0001", pin: "Test@2026" } });
+      assertEquals(createdLogin.status, 200, JSON.stringify(createdLogin.data));
+      const createdToken = createdLogin.data.token as string;
+
+      const search = await call("GET", "/admin/users?search=Ahmed&role=agent&status=active", { token: admin });
+      assertEquals(search.status, 200);
+      assertEquals(search.data.meta.total, 1);
+      assertEquals(search.data.data[0].matricule, "MAT-0001");
+      assertEquals((await call("GET", `/admin/users?site_id=${siteId}`, { token: admin })).status, 200);
+
+      const edited = await call("PUT", `/admin/users/${created.data.id}`, {
+        token: admin,
+        json: { first_name: "Amine", last_name: "Mohamed", role: "supervisor", site_id: siteId, is_active: false, pin: "NewPin@2026", pin_confirmation: "NewPin@2026" },
+      });
+      assertEquals(edited.status, 200, JSON.stringify(edited.data));
+      assertEquals(edited.data.role, "supervisor");
+      assertEquals(edited.data.is_active, false);
+      assertEquals((await call("POST", "/auth/login", { json: { matricule: "MAT-0001", pin: "Test@2026" } })).status, 401);
+      assertEquals((await call("POST", "/auth/login", { json: { matricule: "MAT-0001", pin: "NewPin@2026" } })).status, 403);
+      assertEquals((await call("GET", "/auth/me", { token: createdToken })).status, 401);
+
+      const reactivated = await call("PUT", `/admin/users/${created.data.id}`, {
+        token: admin,
+        json: { is_active: true, site_id: null },
+      });
+      assertEquals(reactivated.status, 200);
+      assertEquals(reactivated.data.site, null);
+      assertEquals((await call("GET", "/auth/me", { token: createdToken })).status, 401);
+      assertEquals((await call("POST", "/auth/login", { json: { matricule: "MAT-0001", pin: "NewPin@2026" } })).status, 200);
+    });
+
     await t.step("Isolation des entreprises : un compte TCN ne voit rien de Demo Company", async () => {
       await db()`select operix.create_user('tcn', 'TCN-SUP-001', 'Tcn@2026!', 'Superviseur TCN', 'supervisor')`;
+      await db()`select operix.create_user('tcn', 'TCN-ADM-001', 'TcnAdmin@2026!', 'Admin TCN', 'company_admin')`;
       const tcn = await login("TCN-SUP-001", "Tcn@2026!");
+      const tcnAdmin = await login("TCN-ADM-001", "TcnAdmin@2026!");
       assertEquals((await call("GET", `/incidents/${incidentId}`, { token: tcn })).status, 404);
       assertEquals((await call("GET", "/incidents", { token: tcn })).data.meta.total, 0);
       assertEquals((await call("GET", `/incidents/${incidentId}/actions`, { token: tcn })).status, 404);
@@ -406,6 +488,27 @@ Deno.test({
       assertEquals((await call("GET", "/incident-actions", { token: tcn })).data.data.length, 0);
       assertEquals((await call("GET", "/dashboard", { token: tcn })).data.safety.incidents_ouverts, 0);
       assertEquals((await call("GET", "/notifications", { token: tcn })).data.meta.total, 0);
+      const tcnUsers = await call("GET", "/admin/users", { token: tcnAdmin });
+      assertEquals(tcnUsers.status, 200);
+      assertEquals(tcnUsers.data.meta.total, 2);
+      assert(!tcnUsers.data.data.some((user: { matricule: string }) => user.matricule === "DEMO-AGT-001"));
+      const demoUserId = (await db()`select id from operix.users where matricule = 'DEMO-AGT-001'`)[0].id;
+      assertEquals((await call("PUT", `/admin/users/${demoUserId}`, { token: tcnAdmin, json: { is_active: false } })).status, 404);
+      const demoSiteId = (await db()`select id from operix.sites where tenant_id = (select id from operix.tenants where slug = 'demo') limit 1`)[0].id;
+      assertEquals((await call("GET", `/admin/users?site_id=${demoSiteId}`, { token: tcnAdmin })).status, 422);
+      assertEquals((await call("POST", "/admin/users", {
+        token: tcnAdmin,
+        json: {
+          first_name: "Cross",
+          last_name: "Tenant",
+          matricule: "TCN-CROSS-001",
+          pin: "Tcn@2026!",
+          pin_confirmation: "Tcn@2026!",
+          role: "agent",
+          site_id: demoSiteId,
+          is_active: true,
+        },
+      })).status, 422);
       // La première référence TCN repart de 0001 : numérotation par entreprise.
       const r = await call("POST", "/incidents", { token: tcn, json: { date: today, location: "Quai", type: "Autre", severity: "low", description: "TCN" } });
       assertEquals(r.data.reference, `INC-${year}-0001`);

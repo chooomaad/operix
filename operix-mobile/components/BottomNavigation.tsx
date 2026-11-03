@@ -1,5 +1,4 @@
 import { Feather } from '@expo/vector-icons';
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,8 +12,13 @@ const ITEMS: Record<string, { label: string; icon: keyof typeof Feather.glyphMap
   profile: { label: 'Profil', icon: 'user' },
 };
 
+interface Props {
+  state: { index: number; routes: { key: string; name: string }[] };
+  navigateToTab: (routeKey: string) => void;
+}
+
 /** Barre : Accueil • Sécurité • (+) • Insights • Profil. Le « + » ouvre la déclaration. */
-export function BottomNavigation({ state, navigation }: BottomTabBarProps) {
+export function BottomNavigation({ state, navigateToTab }: Props) {
   const insets = useSafeAreaInsets();
   const routes = state.routes.filter((r) => ITEMS[r.name]);
 
@@ -28,7 +32,7 @@ export function BottomNavigation({ state, navigation }: BottomTabBarProps) {
         key={name}
         accessibilityRole="tab"
         accessibilityState={{ selected: focused }}
-        onPress={() => navigation.navigate(route.name)}
+        onPress={() => navigateToTab(route.key)}
         className="min-h-[52px] flex-1 items-center justify-center"
       >
         <Feather name={item.icon} size={21} color={focused ? colors.green : colors.faint} />

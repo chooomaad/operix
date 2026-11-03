@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, View } from 'react-native';
+import { Animated, Easing, Image, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/constants/theme';
 import { APP_VERSION } from '@/constants/config';
-import { LogoMark, T } from '@/components/ui';
+import { T } from '@/components/ui';
 
 export function SplashView() {
   const progress = useRef(new Animated.Value(0)).current;
@@ -22,10 +22,12 @@ export function SplashView() {
       </View>
 
       <View className="flex-1 items-center justify-center">
-        <View className="flex-row items-center">
-          <LogoMark size={64} />
-          <T className="ml-3 font-bold text-[34px] tracking-[4px] text-navy">OPERIX</T>
-        </View>
+        <Image
+          source={require('@/assets/operix-logo.png')}
+          accessibilityLabel="OPERIX"
+          resizeMode="contain"
+          style={{ width: 240, height: 160 }}
+        />
         <T variant="heading" className="mt-4 font-medium text-muted">
           HSSE Intelligence Platform
         </T>

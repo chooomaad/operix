@@ -16,6 +16,20 @@ utiliser un **development build**, pas Expo Go.
 
 APK de démonstration : `npm run build:apk` (EAS, profil `preview`).
 
+### Tester sur iPhone (SDK 58)
+
+Expo Go installé depuis l'App Store iOS prend en charge au maximum le SDK 54. Pour tester
+ce projet en SDK 58 sur un iPhone, utilisez le client de développement :
+
+```bash
+npx eas-cli build --platform ios --profile development
+npx expo start --dev-client --lan
+```
+
+Installez sur l'iPhone le build iOS fourni par EAS, puis ouvrez le projet avec ce client
+de développement. La compilation iOS EAS nécessite un compte Expo et un compte Apple
+Developer.
+
 Version navigateur (démo sur ordinateur, recette) : `npx expo start --web`. Le jeton y est
 gardé dans le stockage du navigateur au lieu du coffre sécurisé du téléphone.
 

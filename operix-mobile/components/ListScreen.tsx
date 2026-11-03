@@ -31,7 +31,7 @@ export function ListScreen<T>(p: Props<T>): ReactElement {
         keyExtractor={p.keyExtractor}
         renderItem={p.renderItem}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
-        ListHeaderComponent={p.header ? <View className="mb-2">{p.header}</View> : null}
+        ListHeaderComponent={p.header ? <View className="mb-2">{p.header}</View> : undefined}
         ListEmptyComponent={
           p.loading ? <LoadingState /> : p.error ? <ErrorState message={errorMessage(p.error)} onRetry={p.onRefresh} /> : <EmptyState title={p.emptyTitle} text={p.emptyText} />
         }

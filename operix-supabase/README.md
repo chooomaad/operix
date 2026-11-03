@@ -60,6 +60,7 @@ Toutes sous `/functions/v1/api/v1`, jeton `Authorization: Bearer <token>` sauf l
 | Domaine | Routes |
 |---|---|
 | Auth | `POST /auth/login` · `GET /auth/me` · `POST /auth/logout` |
+| Administration | `GET /admin/sites` · `GET /admin/users` (search, role, site_id, status, page, per_page) · `POST /admin/users` · `PUT /admin/users/{id}` |
 | Tableau de bord | `GET /dashboard` · `/dashboard/recent-activity` · `/dashboard/top-zones` · `/dashboard/incident-stats` · `/safety-tracker` |
 | Incidents | `GET /incidents` (search, type, severity, status, from, to, page, per_page) · `POST /incidents` (multipart, photo) · `GET /incidents/{id}` · `PUT /incidents/{id}` |
 | Operix AI | `POST /ai/incidents/analyze` (sans écriture) |
@@ -71,6 +72,10 @@ Toutes sous `/functions/v1/api/v1`, jeton `Authorization: Bearer <token>` sauf l
 
 Les permissions reprennent la matrice de `operix-api` (`app/Support/Permissions.php`), renvoyée
 au mobile dans `abilities`.
+
+Le portail d’administration séparé se lance et se configure selon
+[`../operix-admin/README.md`](../operix-admin/README.md). Il nécessite un compte ayant la
+permission `users.manage` ; ses opérations restent limitées à la société du compte connecté.
 
 ## Sécurité
 
@@ -122,11 +127,20 @@ npm test
 ```
 
 Lance un PostgreSQL local avec les schémas Supabase reproduits (`tests/supabase_stubs.sql`),
-applique migrations et seed, puis déroule 24 scénarios de la recette du HANDOFF : connexion,
+applique migrations et seed, puis déroule la recette du HANDOFF : connexion,
 KPIs, analyse (règles et Claude simulé), déclaration avec photo et GPS, déploiement du plan et
 409, statuts d'actions, notifications, near-miss, infractions, filtres, numérotation concurrente,
-rejeu hors-ligne, employés, PDF, isolation des entreprises, déconnexion, compte désactivé,
-anti force brute. Requiert les binaires PostgreSQL 16 (`PGBIN` pour un autre chemin).
+rejeu hors-ligne, employés, PDF, gestion des utilisateurs (droits, création, recherche,
+modification et désactivation), isolation des entreprises, déconnexion, compte désactivé,
+anti force brute. Requiert les binaires PostgreSQL 17 (`PGBIN` pour un autre chemin).
+Sur Windows, la recette utilise Git Bash. Avec PostgreSQL 17 installé dans son chemin
+par défaut, configurez le terminal PowerShell avant de lancer les tests :
+
+```powershell
+$env:PATH = 'C:\Program Files\Git\bin;C:\Program Files\PostgreSQL\17\bin;' + $env:PATH
+$env:PGBIN = '/c/Program Files/PostgreSQL/17/bin'
+npm test
+```
 
 Avec Docker, `npx supabase start` puis `npx supabase functions serve api --no-verify-jwt`
 lance la pile Supabase complète.

@@ -13,6 +13,10 @@ insert into operix.tenants (slug, name, short_name, status, primary_color, count
 values ('tcn', 'Terminal à Conteneurs de Nouakchott', 'TCN', 'active', '#0f2847', 'MR', 'Africa/Nouakchott', 'fr')
 on conflict (slug) do nothing;
 
+insert into operix.sites (tenant_id, name, code)
+select id, 'Nouakchott', 'NKC' from operix.tenants where slug = 'tcn'
+on conflict (tenant_id, name) do nothing;
+
 insert into operix.departments (tenant_id, name, code)
 select t.id, d.name, d.code
 from operix.tenants t
@@ -29,6 +33,10 @@ insert into operix.tenants (slug, name, short_name, status, primary_color, count
 values ('demo', 'Demo Company', 'DEMO', 'active', '#7c3aed', 'FR', 'Europe/Paris', 'fr')
 on conflict (slug) do nothing;
 
+insert into operix.sites (tenant_id, name, code)
+select id, 'Nouakchott', 'NKC' from operix.tenants where slug = 'demo'
+on conflict (tenant_id, name) do nothing;
+
 do $$
 begin
   if not exists (select 1 from operix.users where matricule = 'DEMO-ADM-001') then
@@ -38,6 +46,15 @@ begin
     perform operix.create_user('demo', 'DEMO-AGT-001', 'Demo@2026', 'Ousmane Traore', 'agent',         'agent@demo-company.test');
   end if;
 end $$;
+
+update operix.users u
+   set site_id = s.id,
+       first_name = split_part(u.name, ' ', 1),
+       last_name = coalesce(nullif(substr(u.name, length(split_part(u.name, ' ', 1)) + 2), ''), '')
+  from operix.sites s
+ where u.tenant_id = s.tenant_id
+   and s.name = 'Nouakchott'
+   and u.tenant_id = (select id from operix.tenants where slug = 'demo');
 
 insert into operix.departments (tenant_id, name, code)
 select t.id, d.name, d.code

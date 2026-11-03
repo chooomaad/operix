@@ -1,5 +1,6 @@
 import { authenticate, type Ctx } from "./lib/auth.ts";
 import { type Body, CORS_HEADERS, errorResponse, HttpError, json, readBody } from "./lib/http.ts";
+import { createAdminUser, listAdminSites, listAdminUsers, updateAdminUser } from "./routes/admin.ts";
 import { analyzeIncident, deployActions, listIncidentActions, listOpenActions, updateAction } from "./routes/actions.ts";
 import { login, logout, me } from "./routes/auth.ts";
 import { agentEmployeeSearch, dashboard, incidentStats, listEmployees, recentActivity, safetyTracker, topZones } from "./routes/dashboard.ts";
@@ -38,6 +39,12 @@ const num = (s: string) => Number(s);
 // Auth
 on("GET", "/auth/me", (_r, c) => me(c));
 on("POST", "/auth/logout", (_r, c) => logout(c));
+
+// Administration des utilisateurs (permission users.manage, périmètre société).
+on("GET", "/admin/sites", (_r, c) => listAdminSites(c));
+on("GET", "/admin/users", (r, c) => listAdminUsers(c, r.url));
+on("POST", "/admin/users", async (r, c) => createAdminUser(c, await r.body()));
+on("PUT", `/admin/users/${ID}`, async (r, c) => updateAdminUser(c, num(r.params[0]), await r.body()));
 
 // Tableau de bord
 on("GET", "/dashboard", (_r, c) => dashboard(c));

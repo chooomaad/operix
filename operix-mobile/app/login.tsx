@@ -59,9 +59,9 @@ export default function LoginScreen() {
 
           <Card className="mt-6 p-5">
             <Input
-              label="Matricule Agent"
+              label="Matricule"
               icon="user"
-              placeholder="SN-DKR-4092"
+              placeholder="Ex. MAT-0001"
               autoCapitalize="characters"
               autoCorrect={false}
               value={matricule}
