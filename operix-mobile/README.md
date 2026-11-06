@@ -26,6 +26,18 @@ d'Expo/EAS.
 
 APK de démonstration : `npm run build:apk` (EAS, profil `preview`).
 
+### Builds Codemagic
+
+Le dépôt contient `codemagic.yaml` à sa racine. Il propose un APK Android de prévisualisation
+(signature de debug, pour essais uniquement) et un workflow iOS qui construit puis téléverse
+l'IPA dans App Store Connect. Dans Codemagic, vérifiez le fichier de configuration après son
+ajout au dépôt.
+
+Pour TestFlight, configurez l'intégration App Store Connect nommée `Operix App Store Connect`
+et la signature iOS pour le bundle `com.operix.mobile`. L'application portant cet identifiant
+doit d'abord exister dans App Store Connect. Le workflow publie le build dans TestFlight sans
+le soumettre automatiquement à la revue bêta.
+
 ### Tester sur iPhone (SDK 58)
 
 Expo Go installé depuis l'App Store iOS prend en charge au maximum le SDK 54. Pour tester

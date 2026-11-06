@@ -1,0 +1,74 @@
+workflows:
+  operix-android-preview:
+    name: OPERIX Android preview
+    max_build_duration: 120
+    instance_type: linux_x2
+    environment:
+      node: v22.13.1
+    scripts:
+      - name: Install dependencies
+        script: |
+          cd "$CM_BUILD_DIR/operix-mobile"
+          npm ci
+      - name: Generate Android project
+        script: |
+          cd "$CM_BUILD_DIR/operix-mobile"
+          npx expo prebuild --platform android
+      - name: Set Android SDK location
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/operix-mobile/android/local.properties"
+      - name: Build preview APK
+        script: |
+          cd "$CM_BUILD_DIR/operix-mobile/android"
+          ./gradlew assembleDebug
+    artifacts:
+      - operix-mobile/android/app/build/outputs/**/*.apk
+
+  operix-ios-testflight:
+    name: OPERIX iOS TestFlight
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: Operix App Store Connect
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.operix.mobile
+      vars:
+        XCODE_WORKSPACE: OPERIX.xcworkspace
+        XCODE_SCHEME: OPERIX
+      node: v22.13.1
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install dependencies
+        script: |
+          cd "$CM_BUILD_DIR/operix-mobile"
+          npm ci
+      - name: Generate iOS project
+        script: |
+          cd "$CM_BUILD_DIR/operix-mobile"
+          npx expo prebuild --platform ios
+      - name: Install CocoaPods dependencies
+        script: |
+          cd "$CM_BUILD_DIR/operix-mobile/ios"
+          pod install
+      - name: Configure code signing
+        script: xcode-project use-profiles
+      - name: Set build number
+        script: |
+          cd "$CM_BUILD_DIR/operix-mobile/ios"
+          agvtool new-version -all "$BUILD_NUMBER"
+      - name: Build IPA
+        script: |
+          cd "$CM_BUILD_DIR/operix-mobile"
+          xcode-project build-ipa \
+            --workspace "$CM_BUILD_DIR/operix-mobile/ios/$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - operix-mobile/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: false
