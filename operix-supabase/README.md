@@ -128,6 +128,15 @@ séparément dans `operix.platform_admins`. Il peut créer et suspendre des soci
 comptes, employés, incidents, presqu'accidents et violations. La suspension conserve les
 données; l'archivage des dossiers est logique et conserve l'historique.
 
+### Déployer l'Edge Function depuis GitHub
+
+Le workflow [Deploy Supabase API](../.github/workflows/deploy-supabase-api.yml) déploie
+`api` sans installer ni connecter la CLI sur votre ordinateur. Dans les paramètres du
+dépôt GitHub, créez le secret d'action `SUPABASE_ACCESS_TOKEN` à partir d'un access token
+Supabase. Ne mettez jamais ce token dans le dépôt ni dans un message. Ensuite, ouvrez
+**Actions → Deploy Supabase API → Run workflow**; les changements ultérieurs sous
+`operix-supabase/supabase/functions/` se déploieront lors d'un push sur `main`.
+
 ## Sécurité
 
 - Le schéma `operix` **n'est pas exposé** par l'API REST auto-générée de Supabase ; RLS y est
