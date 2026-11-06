@@ -17,12 +17,12 @@ workflows:
       - name: Set Android SDK location
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/operix-mobile/android/local.properties"
-      - name: Build preview APK
+      - name: Build standalone release APK
         script: |
           cd "$CM_BUILD_DIR/operix-mobile/android"
-          ./gradlew assembleDebug
+          ./gradlew assembleRelease
     artifacts:
-      - operix-mobile/android/app/build/outputs/**/*.apk
+      - operix-mobile/android/app/build/outputs/apk/release/*.apk
 
   operix-ios-testflight:
     name: OPERIX iOS TestFlight
