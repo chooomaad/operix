@@ -59,6 +59,19 @@ configuration CORS du backend. Le portail permet de créer et modifier les compt
 ainsi que de gérer les fiches employés (matricule, poste, département, contrat et statut).
 Les routes de gestion des fiches nécessitent le droit `employees.manage`.
 
+### Déployer sur Vercel
+
+Importez le dépôt GitHub `chooomaad/operix` dans Vercel et configurez le projet ainsi :
+
+- **Root Directory** : `operix-admin`
+- **Framework Preset** : Vite
+- **Build Command** : `npm run build`
+- **Output Directory** : `dist`
+- **Environment Variable** : `VITE_API_URL=https://vnsuwwglgbqumizqsvoy.supabase.co/functions/v1/api/v1`
+
+Le fichier `vercel.json` configure le fallback SPA. L’API OPERIX actuelle accepte les
+requêtes cross-origin; l’authentification et les permissions sont contrôlées côté serveur.
+
 Dans **Employés**, utilisez **Télécharger le modèle CSV** pour obtenir les en-têtes
 acceptés, puis **Importer un CSV** pour vérifier les lignes avant confirmation.
 Le fichier doit être en UTF-8, avec `prenom` et `nom` obligatoires. Les colonnes
