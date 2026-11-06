@@ -34,7 +34,7 @@ l'IPA dans App Store Connect. Dans Codemagic, vérifiez le fichier de configurat
 ajout au dépôt.
 
 Pour TestFlight, configurez l'intégration App Store Connect nommée `Operix App Store Connect`
-et la signature iOS pour le bundle `com.operix.mobile`. L'application portant cet identifiant
+et la signature iOS pour le bundle `com.operix.hsse`. L'application portant cet identifiant
 doit d'abord exister dans App Store Connect. Le workflow publie le build dans TestFlight sans
 le soumettre automatiquement à la revue bêta.
 

@@ -33,7 +33,7 @@ workflows:
     environment:
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.operix.mobile
+        bundle_identifier: com.operix.hsse
       vars:
         XCODE_WORKSPACE: OPERIX.xcworkspace
         XCODE_SCHEME: OPERIX

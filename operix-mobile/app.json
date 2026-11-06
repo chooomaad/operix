@@ -69,7 +69,7 @@
       ]
     },
     "ios": {
-      "bundleIdentifier": "com.operix.mobile",
+      "bundleIdentifier": "com.operix.hsse",
       "supportsTablet": false,
       "infoPlist": {
         "NSSpeechRecognitionUsageDescription": "OPERIX transcrit votre constat vocal.",
