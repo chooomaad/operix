@@ -4,15 +4,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/constants/theme';
 import { APP_VERSION } from '@/constants/config';
 import { T } from '@/components/ui';
+import { useTheme } from '@/features/theme/ThemeProvider';
 
 export function SplashView() {
+  const theme = useTheme();
   const progress = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(progress, { toValue: 1, duration: 1500, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
   }, [progress]);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg, paddingHorizontal: 20 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg, paddingHorizontal: 20 }}>
       <View className="flex-row items-center justify-between pt-2">
         <View className="flex-row items-center">
           <View className="mr-1.5 h-1.5 w-1.5 rounded-full bg-green" />
@@ -34,13 +36,13 @@ export function SplashView() {
         <T variant="label" className="mt-2 tracking-[1px] text-navy">
           Report • Understand • Prevent
         </T>
-        <View className="mt-6 flex-row items-center rounded-full border border-border bg-surface px-3 py-1.5">
+        <View className="mt-6 flex-row items-center rounded-full border border-border bg-surface px-3 py-1.5" style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}>
           <View className="mr-2 h-1.5 w-1.5 rounded-full bg-green" />
           <T variant="caption">Pan-African & Offshore Nodes Sync</T>
         </View>
       </View>
 
-      <View className="mb-4 rounded-2xl border border-border bg-surface p-4">
+      <View className="mb-4 rounded-2xl border border-border bg-surface p-4" style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}>
         <T variant="bodyStrong">Vérification des protocoles…</T>
         <T variant="caption" className="mb-3">
           Inspection Matrices & ATEX Ready

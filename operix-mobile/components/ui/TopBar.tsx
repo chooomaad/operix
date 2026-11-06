@@ -1,8 +1,8 @@
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
-import { colors } from '@/constants/theme';
 import { useAuth } from '@/features/auth/AuthProvider';
+import { useTheme } from '@/features/theme/ThemeProvider';
 import { LogoMark } from './Logo';
 import { Avatar } from './Primitives';
 import { T } from './Text';
@@ -17,10 +17,11 @@ interface TopBarProps {
 
 export function TopBar({ title, back, status, unread = 0, showBell = true }: TopBarProps) {
   const { session } = useAuth();
+  const { colors } = useTheme();
   return (
     <View className="flex-row items-center px-4 pb-3 pt-2">
       {back ? (
-        <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} hitSlop={12} className="mr-2 h-10 w-10 items-center justify-center rounded-full border border-border bg-surface">
+        <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} hitSlop={12} className="mr-2 h-10 w-10 items-center justify-center rounded-full border border-border bg-surface" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
           <Feather name="arrow-left" size={18} color={colors.navy} />
         </Pressable>
       ) : (
@@ -38,7 +39,7 @@ export function TopBar({ title, back, status, unread = 0, showBell = true }: Top
         ) : null}
       </View>
       {showBell ? (
-        <Pressable onPress={() => router.push('/notifications')} hitSlop={10} className="mr-3 h-10 w-10 items-center justify-center rounded-full border border-border bg-surface">
+        <Pressable onPress={() => router.push('/notifications')} hitSlop={10} className="mr-3 h-10 w-10 items-center justify-center rounded-full border border-border bg-surface" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
           <Feather name="bell" size={18} color={colors.navy} />
           {unread > 0 ? <View className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red" /> : null}
         </Pressable>

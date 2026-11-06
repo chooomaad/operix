@@ -15,6 +15,7 @@ import { aiService } from '@/services/ai';
 import { errorMessage } from '@/services/api';
 import type { Severity } from '@/types/api';
 import { showAlert } from '@/lib/alert';
+import { useTheme } from '@/features/theme/ThemeProvider';
 
 const LEVELS: Severity[] = ['low', 'medium', 'high', 'critical'];
 
@@ -35,6 +36,7 @@ function Analyzing() {
 }
 
 export default function AnalysisScreen() {
+  const theme = useTheme();
   const { draft, analysis, setAnalysis, setOutcome } = useDeclare();
   const [error, setError] = useState<unknown>(null);
   const [severity, setSeverity] = useState<Severity>('medium');
@@ -108,7 +110,11 @@ export default function AnalysisScreen() {
           {!isAi ? (
             <View className="mt-4 rounded-xl bg-orange-soft p-3">
               <T variant="caption" className="text-orange">
-                Moteur IA non configuré sur le serveur : plan type issu des règles métier, à confirmer par le superviseur.
+                {analysis.fallback_reason === 'provider_unavailable'
+                  ? 'Le fournisseur IA est configuré mais ne répond pas. Cette analyse vient du moteur de règles et doit être confirmée par le superviseur. Vérifiez la clé et le modèle IA dans les secrets Supabase.'
+                  : analysis.fallback_reason === 'rules_selected'
+                    ? 'Le serveur est configuré pour utiliser le moteur de règles. Cette analyse doit être confirmée par le superviseur.'
+                    : 'Aucune clé de fournisseur IA n’est configurée sur le serveur. Cette analyse vient du moteur de règles et doit être confirmée par le superviseur.'}
               </T>
             </View>
           ) : null}
@@ -145,7 +151,7 @@ export default function AnalysisScreen() {
               <T variant="label">Ajuster le niveau de risque</T>
               <View className="mt-3 flex-row" style={{ gap: 6 }}>
                 {LEVELS.filter((l) => draft.kind !== 'near_miss' || l !== 'critical').map((l) => (
-                  <Pressable key={l} onPress={() => setSeverity(l)} className={`min-h-[44px] flex-1 items-center justify-center rounded-lg border ${severity === l ? 'border-navy bg-navy' : 'border-border'}`}>
+                  <Pressable key={l} onPress={() => setSeverity(l)} className={`min-h-[44px] flex-1 items-center justify-center rounded-lg border ${severity === l ? 'border-navy bg-navy' : 'border-border'}`} style={{ backgroundColor: severity === l ? theme.colors.navy : 'transparent', borderColor: severity === l ? theme.colors.navy : theme.colors.border }}>
                     <T className={`font-semibold text-[12px] ${severity === l ? 'text-white' : 'text-navy'}`}>{severityLabel[l]}</T>
                   </Pressable>
                 ))}

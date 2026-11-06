@@ -9,6 +9,7 @@ import { useUnreadCount } from '@/hooks/useUnread';
 import { roleLabel } from '@/lib/labels';
 import { formatDateTime } from '@/lib/format';
 import { confirmAction } from '@/lib/alert';
+import { useTheme } from '@/features/theme/ThemeProvider';
 
 const LINKS: { href: Href; icon: keyof typeof Feather.glyphMap; label: string }[] = [
   { href: '/notifications', icon: 'bell', label: 'Notifications' },
@@ -17,6 +18,7 @@ const LINKS: { href: Href; icon: keyof typeof Feather.glyphMap; label: string }[
 ];
 
 export default function ProfileScreen() {
+  const theme = useTheme();
   const { session, logout } = useAuth();
   const unread = useUnreadCount();
   const u = session?.user;
@@ -50,11 +52,11 @@ export default function ProfileScreen() {
           <View key={l.label}>
             {i > 0 ? <View className="ml-14 h-px bg-divider" /> : null}
             <Pressable className="min-h-[52px] flex-row items-center px-4 py-3.5" onPress={() => router.push(l.href)}>
-              <Feather name={l.icon} size={18} color={colors.navy} />
+              <Feather name={l.icon} size={18} color={theme.colors.navy} />
               <T variant="body" className="ml-4 flex-1">
                 {l.label}
               </T>
-              <Feather name="chevron-right" size={18} color={colors.faint} />
+              <Feather name="chevron-right" size={18} color={theme.colors.faint} />
             </Pressable>
           </View>
         ))}

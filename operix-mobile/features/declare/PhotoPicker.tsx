@@ -6,12 +6,14 @@ import { colors } from '@/constants/theme';
 import { T } from '@/components/ui';
 import type { LocalFile } from '@/services/api';
 import { showAlert } from '@/lib/alert';
+import { useTheme } from '@/features/theme/ThemeProvider';
 
 /**
  * Une photo par déclaration : l'API stocke une image par incident / near-miss
  * (champ `image`, 5 Mo max). Compression à 0.6 pour rester sous la limite.
  */
 export function PhotoPicker({ value, onChange }: { value: LocalFile | null; onChange: (f: LocalFile | null) => void }) {
+  const theme = useTheme();
   const pick = async (source: 'camera' | 'library') => {
     const perm = source === 'camera' ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
@@ -31,7 +33,7 @@ export function PhotoPicker({ value, onChange }: { value: LocalFile | null; onCh
 
   if (value) {
     return (
-      <View className="overflow-hidden rounded-2xl border border-border bg-surface">
+      <View className="overflow-hidden rounded-2xl border border-border bg-surface" style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}>
         <Image source={{ uri: value.uri }} style={{ width: '100%', aspectRatio: 4 / 3 }} contentFit="cover" />
         <View className="flex-row items-center justify-between px-4 py-3">
           <View className="flex-row items-center">
@@ -66,8 +68,8 @@ export function PhotoPicker({ value, onChange }: { value: LocalFile | null; onCh
         </T>
         <T variant="caption">Caméra</T>
       </Pressable>
-      <Pressable onPress={() => pick('library')} className="flex-1 items-center justify-center rounded-2xl border border-border bg-surface py-7">
-        <Feather name="image" size={22} color={colors.navy} />
+      <Pressable onPress={() => pick('library')} className="flex-1 items-center justify-center rounded-2xl border border-border bg-surface py-7" style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}>
+        <Feather name="image" size={22} color={theme.colors.navy} />
         <T variant="caption" className="mt-2">
           Galerie
         </T>

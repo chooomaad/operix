@@ -20,6 +20,7 @@ import { actionsService } from '@/services/actions';
 import { incidentsService } from '@/services/incidents';
 import type { ActionStatus, RecordStatus } from '@/types/api';
 import { showAlert } from '@/lib/alert';
+import { useTheme } from '@/features/theme/ThemeProvider';
 
 const NEXT_ACTION: Record<ActionStatus, ActionStatus> = { todo: 'in_progress', in_progress: 'done', done: 'todo' };
 const NEXT_STATUS: Record<RecordStatus, RecordStatus | null> = { open: 'in_progress', in_progress: null, closed: null };
@@ -28,6 +29,7 @@ export default function IncidentDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const incidentId = Number(id);
   const { can } = useAuth();
+  const theme = useTheme();
   const inc = useQuery(`incidents:${incidentId}`, () => incidentsService.get(incidentId));
   const acts = useQuery(`incidents:${incidentId}:actions`, () => actionsService.forIncident(incidentId));
   const [busy, setBusy] = useState(false);
@@ -49,7 +51,7 @@ export default function IncidentDetail() {
     if (!i) return;
     const next = NEXT_STATUS[i.status];
     if (!next) {
-      showAlert('Clôture', 'La clôture exige un rapport de clôture PDF : elle se fait depuis la plateforme web OPERIX.');
+      showAlert('Clôture', 'La clôture des incidents est réservée au portail web OPERIX.');
       return;
     }
     setBusy(true);
@@ -136,7 +138,7 @@ export default function IncidentDetail() {
           {i.image_url ? (
             <View className="overflow-hidden rounded-2xl border border-border">
               <Image source={{ uri: i.image_url }} style={{ width: '100%', aspectRatio: 4 / 3 }} contentFit="cover" transition={150} />
-              <View className="bg-surface px-4 py-2.5">
+              <View className="bg-surface px-4 py-2.5" style={{ backgroundColor: theme.colors.surface }}>
                 <T variant="caption">Ajoutée : {formatDateTime(i.created_at)}</T>
               </View>
             </View>

@@ -1,10 +1,10 @@
 import type { ReactElement, ReactNode } from 'react';
 import { FlatList, RefreshControl, View, type ListRenderItem } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '@/constants/theme';
 import { errorMessage } from '@/services/api';
 import { EmptyState, ErrorState, LoadingState, TopBar } from './ui';
 import { OfflineBanner } from './OfflineBanner';
+import { useTheme } from '@/features/theme/ThemeProvider';
 
 interface Props<T> {
   title: string;
@@ -22,8 +22,9 @@ interface Props<T> {
 }
 
 export function ListScreen<T>(p: Props<T>): ReactElement {
+  const theme = useTheme();
   return (
-    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.bg }}>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: theme.colors.bg }}>
       <TopBar title={p.title} back />
       <OfflineBanner />
       <FlatList
@@ -40,7 +41,7 @@ export function ListScreen<T>(p: Props<T>): ReactElement {
         initialNumToRender={10}
         windowSize={7}
         removeClippedSubviews
-        refreshControl={<RefreshControl refreshing={p.refreshing} onRefresh={p.onRefresh} tintColor={colors.green} />}
+        refreshControl={<RefreshControl refreshing={p.refreshing} onRefresh={p.onRefresh} tintColor={theme.colors.green} />}
       />
     </SafeAreaView>
   );

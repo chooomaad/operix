@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { colors } from '@/constants/theme';
 import { Screen } from '@/components/Screen';
-import { Button, Card, Input, SectionHeader, Select, StatusBadge, T, TopBar } from '@/components/ui';
+import { Button, Card, Input, SectionHeader, StatusBadge, T, TopBar } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useDeclare } from '@/features/declare/DeclareProvider';
 import { PhotoPicker } from '@/features/declare/PhotoPicker';
@@ -13,11 +13,10 @@ import { VoiceButton } from '@/features/declare/VoiceButton';
 import { submitDeclaration } from '@/features/declare/submit';
 import { useCurrentLocation } from '@/hooks/useLocation';
 import { useIsOnline } from '@/hooks/useNetwork';
-import { useQuery } from '@/hooks/useQuery';
 import { errorMessage } from '@/services/api';
-import { dashboardService } from '@/services/dashboard';
 import type { EventKind } from '@/types/api';
 import { showAlert } from '@/lib/alert';
+import { useTheme } from '@/features/theme/ThemeProvider';
 
 const KINDS: { key: EventKind; label: string; icon: keyof typeof Feather.glyphMap; ability: string }[] = [
   { key: 'incident', label: 'Incident', icon: 'alert-triangle', ability: 'incidents.create' },
@@ -25,30 +24,35 @@ const KINDS: { key: EventKind; label: string; icon: keyof typeof Feather.glyphMa
   { key: 'violation', label: 'Violation', icon: 'slash', ability: 'breaches.manage' },
 ];
 
+function locationForFix(fix: { latitude: number; longitude: number } | null): string {
+  return fix ? `GPS ${fix.latitude.toFixed(5)}, ${fix.longitude.toFixed(5)}` : 'Lieu non géolocalisé';
+}
+
 export default function DeclareScreen() {
   const { can } = useAuth();
   const online = useIsOnline();
   const { draft, setDraft, setAnalysis, setOutcome } = useDeclare();
+  const theme = useTheme();
   const { fix, status: gps, locate } = useCurrentLocation();
-  const zones = useQuery('dashboard:zones', dashboardService.topZones);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (fix) setDraft({ fix });
+    if (fix) setDraft({ fix, location: locationForFix(fix) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fix]);
 
   const validate = () => {
-    if (!draft.location.trim()) return "Indiquez le lieu de l'événement.";
     if (draft.description.trim().length < 10) return 'Décrivez la situation en une phrase au moins.';
     return null;
   };
 
-  const analyze = () => {
+  const analyze = async () => {
     const v = validate();
     setError(v);
     if (v) return;
+    const freshFix = await locate();
+    setDraft({ fix: freshFix, location: locationForFix(freshFix) });
     setAnalysis(null);
     router.push('/declare/analysis');
   };
@@ -60,7 +64,10 @@ export default function DeclareScreen() {
     if (v) return;
     setSaving(true);
     try {
-      setOutcome(await submitDeclaration(draft, null, 'medium', []));
+      const freshFix = await locate();
+      const currentDraft = { ...draft, fix: freshFix, location: locationForFix(freshFix) };
+      setDraft({ fix: freshFix, location: currentDraft.location });
+      setOutcome(await submitDeclaration(currentDraft, null, 'medium', []));
       router.replace('/declare/success');
     } catch (e) {
       showAlert('Enregistrement impossible', errorMessage(e));
@@ -86,8 +93,9 @@ export default function DeclareScreen() {
               disabled={!allowed}
               onPress={() => setDraft({ kind: k.key })}
               className={`min-h-[64px] flex-1 items-center justify-center rounded-xl border ${active ? 'border-navy bg-navy' : 'border-border bg-surface'} ${allowed ? '' : 'opacity-40'}`}
+              style={{ backgroundColor: active ? theme.colors.navy : theme.colors.surface, borderColor: active ? theme.colors.navy : theme.colors.border }}
             >
-              <Feather name={k.icon} size={18} color={active ? '#fff' : colors.navy} />
+              <Feather name={k.icon} size={18} color={active ? '#fff' : theme.colors.navy} />
               <T className={`mt-1 font-semibold text-[13px] ${active ? 'text-white' : 'text-navy'}`}>{k.label}</T>
             </Pressable>
           );
@@ -99,34 +107,27 @@ export default function DeclareScreen() {
         </T>
       ) : null}
 
-      <SectionHeader title="Lieu de l'événement" />
-      <Select
-        value={draft.location}
-        placeholder="Choisir une zone du site"
-        options={(zones.data ?? []).map((z) => z.location)}
-        onChange={(location) => setDraft({ location })}
-        allowCustom
-      />
+      <SectionHeader title="Localisation automatique" />
       <Card className="-mt-1 flex-row items-center p-3">
         <Feather name="crosshair" size={16} color={gps === 'ok' ? colors.green : colors.muted} />
         <View className="ml-2.5 flex-1">
           {gps === 'ok' && fix ? (
             <>
               <T variant="label" className="text-green-dark">
-                GPS vérifié {accuracy}
+                Position détectée automatiquement {accuracy}
               </T>
               <T variant="caption">
                 {fix.latitude.toFixed(5)}, {fix.longitude.toFixed(5)}
               </T>
             </>
           ) : (
-            <T variant="caption">{gps === 'locating' ? 'Localisation en cours…' : gps === 'denied' ? 'Localisation refusée — déclaration sans GPS' : 'Position indisponible'}</T>
+            <T variant="caption">{gps === 'locating' ? 'Détection GPS en cours…' : gps === 'denied' ? 'Permission refusée — la déclaration reste possible sans GPS' : 'Position indisponible — la déclaration reste possible'}</T>
           )}
         </View>
-        {gps !== 'ok' && gps !== 'locating' ? (
+        {gps !== 'locating' ? (
           <Pressable onPress={locate} hitSlop={8}>
             <T variant="label" className="text-green">
-              Réessayer
+              {gps === 'ok' ? 'Actualiser' : 'Réessayer'}
             </T>
           </Pressable>
         ) : null}
@@ -135,7 +136,7 @@ export default function DeclareScreen() {
       <SectionHeader title="Description de l'événement" />
       <Input
         multiline
-        placeholder="Ex. Fuite d'huile hydraulique au pied du portique #02. Surface très glissante sur le passage des agents."
+        placeholder="Décrivez la situation ou touchez le micro pour la dicter…"
         value={draft.description}
         onChangeText={(description) => setDraft({ description })}
         maxLength={5000}
@@ -163,7 +164,7 @@ export default function DeclareScreen() {
 
       <View className="mt-5">
         {online ? (
-          <Button label="Analyser avec Operix AI" trailingIcon="arrow-right" onPress={analyze} />
+          <Button label="Analyser avec Operix AI" trailingIcon="arrow-right" onPress={analyze} loading={gps === 'locating'} />
         ) : (
           <>
             <StatusBadge label="Hors ligne — analyse IA indisponible" tone="orange" dot />

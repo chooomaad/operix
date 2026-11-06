@@ -55,7 +55,7 @@ export const nearMissService = {
     toFormData({ ...payload }, { image }).then((fd) => api.post<NearMiss>('/near-miss', fd, multipart)).then((r) => r.data),
 };
 
-export interface NewBreach {
+export interface NewBreach extends GeoFields {
   date: string;
   location: string;
   type: string;

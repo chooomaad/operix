@@ -20,6 +20,7 @@ export async function login(req: Request, body: Body): Promise<Response> {
   const sql = db();
   const rows = await sql<(User & { pin_ok: boolean; t: Tenant })[]>`
     select u.id, u.tenant_id, u.name, u.email, u.role, u.matricule, u.phone, u.avatar, u.is_active, u.last_login_at,
+           exists (select 1 from operix.platform_admins p where p.user_id = u.id) as is_platform_admin,
            (a.encrypted_password is not null
              and a.encrypted_password = extensions.crypt(${pin!}, a.encrypted_password)) as pin_ok,
            row_to_json(t.*) as t

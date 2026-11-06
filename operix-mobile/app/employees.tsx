@@ -12,40 +12,89 @@ export default function EmployeesScreen() {
   const [q, setQ] = useState('');
   const [items, setItems] = useState<EmployeeLite[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [reload, setReload] = useState(0);
   const [error, setError] = useState<unknown>(null);
 
-  // L'endpoint agent exige au moins 2 caractères et est limité à 30 req/min : on temporise.
+  // Les agents recherchent uniquement; l'encadrement autorisé peut parcourir la liste.
   useEffect(() => {
-    if (q.trim().length < 2) {
+    const query = q.trim();
+    if (!full && query.length < 2) {
       setItems([]);
+      setLoading(false);
+      setRefreshing(false);
+      setError(null);
       return;
     }
+    let active = true;
     const t = setTimeout(async () => {
       setLoading(true);
+      setError(null);
       try {
-        setItems(await employeesService.search(q.trim(), full));
-        setError(null);
+        if (full) {
+          const result = await employeesService.list(query, 1);
+          if (!active) return;
+          setItems(result.items);
+          setPage(result.page);
+          setLastPage(result.lastPage);
+        } else {
+          const result = await employeesService.search(query);
+          if (!active) return;
+          setItems(result);
+          setPage(1);
+          setLastPage(1);
+        }
       } catch (e) {
-        setError(e);
+        if (active) setError(e);
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     }, 400);
-    return () => clearTimeout(t);
-  }, [q, full]);
+    return () => {
+      active = false;
+      clearTimeout(t);
+    };
+  }, [q, full, reload]);
+
+  const loadMore = async () => {
+    if (!full || loading || loadingMore || page >= lastPage) return;
+    setLoadingMore(true);
+    try {
+      const result = await employeesService.list(q.trim(), page + 1);
+      setItems((current) => [...current, ...result.items]);
+      setPage(result.page);
+      setLastPage(result.lastPage);
+    } catch (loadError) {
+      setError(loadError);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const refresh = () => {
+    setRefreshing(true);
+    setReload((current) => current + 1);
+  };
 
   return (
     <ListScreen
       title="Employés"
       items={items}
       loading={loading}
-      refreshing={false}
+      refreshing={refreshing}
       error={error}
-      onRefresh={() => setQ((v) => `${v}`)}
-      header={<Input icon="search" placeholder="Matricule ou nom (2 caractères min.)" value={q} onChangeText={setQ} autoCorrect={false} />}
+      onRefresh={refresh}
+      onEndReached={full ? () => void loadMore() : undefined}
+      header={<Input icon="search" placeholder={full ? 'Filtrer par matricule ou nom' : 'Matricule ou nom (2 caractères min.)'} value={q} onChangeText={setQ} autoCorrect={false} />}
       keyExtractor={(e) => String(e.id)}
-      emptyTitle={q.trim().length < 2 ? 'Rechercher un employé' : 'Aucun résultat'}
-      emptyText="Recherche limitée au matricule, au nom et au statut."
+      emptyTitle={!full && q.trim().length < 2 ? 'Rechercher un employé' : 'Aucun résultat'}
+      emptyText={!full && q.trim().length < 2 ? 'Saisissez au moins 2 caractères du nom ou du matricule.' : loadingMore ? 'Chargement des employés…' : undefined}
       renderItem={({ item }) => (
         <Card className="mb-2 flex-row items-center p-3">
           <Avatar name={item.name} size={34} />

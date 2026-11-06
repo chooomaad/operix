@@ -4,6 +4,7 @@ import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, shadow } from '@/constants/theme';
 import { T } from './ui/Text';
+import { useTheme } from '@/features/theme/ThemeProvider';
 
 const ITEMS: Record<string, { label: string; icon: keyof typeof Feather.glyphMap }> = {
   index: { label: 'Accueil', icon: 'home' },
@@ -20,6 +21,7 @@ interface Props {
 /** Barre : Accueil • Sécurité • (+) • Insights • Profil. Le « + » ouvre la déclaration. */
 export function BottomNavigation({ state, navigateToTab }: Props) {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
   const routes = state.routes.filter((r) => ITEMS[r.name]);
 
   const tab = (name: string) => {
@@ -35,14 +37,14 @@ export function BottomNavigation({ state, navigateToTab }: Props) {
         onPress={() => navigateToTab(route.key)}
         className="min-h-[52px] flex-1 items-center justify-center"
       >
-        <Feather name={item.icon} size={21} color={focused ? colors.green : colors.faint} />
+        <Feather name={item.icon} size={21} color={focused ? colors.green : theme.colors.faint} />
         <T className={`mt-1 text-[11px] ${focused ? 'font-semibold text-green' : 'font-medium text-faint'}`}>{item.label}</T>
       </Pressable>
     );
   };
 
   return (
-    <View className="absolute bottom-0 left-0 right-0 flex-row items-center border-t border-border bg-surface px-2 pt-1.5" style={{ paddingBottom: Math.max(insets.bottom, 8) }}>
+    <View className="absolute bottom-0 left-0 right-0 flex-row items-center border-t border-border bg-surface px-2 pt-1.5" style={{ paddingBottom: Math.max(insets.bottom, 8), backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}>
       {routes.slice(0, 2).map((r) => tab(r.name))}
       <View className="flex-1 items-center">
         <Pressable
@@ -50,7 +52,7 @@ export function BottomNavigation({ state, navigateToTab }: Props) {
           accessibilityLabel="Déclarer un incident"
           onPress={() => router.push('/declare')}
           className="-mt-7 h-16 w-16 items-center justify-center rounded-full border-4 border-bg bg-green"
-          style={[shadow, { shadowOpacity: 0.18, elevation: 6 }]}
+          style={[shadow, { borderColor: theme.colors.bg, shadowOpacity: 0.18, elevation: 6 }]}
         >
           <Feather name="plus" size={28} color="#FFFFFF" />
         </Pressable>

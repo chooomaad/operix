@@ -110,9 +110,10 @@ export interface Analysis {
   aggravating_factor: string | null;
   legal_reference: string | null;
   actions: ProposedAction[];
-  /** `ai` = Claude, `rules` = moteur de règles de repli. Toujours affiché. */
+  /** `ai` = modèle IA distant, `rules` = moteur de règles de repli. Toujours affiché. */
   engine: 'ai' | 'rules' | 'manual';
   model: string | null;
+  fallback_reason?: 'not_configured' | 'provider_unavailable' | 'rules_selected' | null;
   duration_ms: number;
   analyzed_at: string;
 }

@@ -1,19 +1,21 @@
 import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 import { shadow } from '@/constants/theme';
+import { useTheme } from '@/features/theme/ThemeProvider';
 import { T } from './Text';
 
 export function Card({ children, className = '', onPress }: { children: ReactNode; className?: string; onPress?: () => void }) {
+  const { colors } = useTheme();
   const cls = `rounded-2xl border border-border bg-surface p-4 ${className}`;
   if (onPress) {
     return (
-      <Pressable onPress={onPress} className={cls} style={({ pressed }) => [shadow, pressed && { opacity: 0.9 }]}>
+      <Pressable onPress={onPress} className={cls} style={({ pressed }) => [shadow, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && { opacity: 0.9 }]}>
         {children}
       </Pressable>
     );
   }
   return (
-    <View className={cls} style={shadow}>
+    <View className={cls} style={[shadow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       {children}
     </View>
   );

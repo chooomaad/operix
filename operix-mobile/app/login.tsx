@@ -8,8 +8,10 @@ import { colors } from '@/constants/theme';
 import { Button, Card, Input, Logo, StatusBadge, T } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { errorMessage } from '@/services/api';
+import { useTheme } from '@/features/theme/ThemeProvider';
 
 export default function LoginScreen() {
+  const theme = useTheme();
   const { login, biometricLogin, biometricAvailable } = useAuth();
   const [matricule, setMatricule] = useState('');
   const [pin, setPin] = useState('');
@@ -39,7 +41,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
           <View className="flex-row items-center justify-between">
@@ -101,7 +103,7 @@ export default function LoginScreen() {
             </Pressable>
           </Card>
 
-          <View className="mt-4 flex-row items-center rounded-2xl border border-border bg-surface p-4">
+          <View className="mt-4 flex-row items-center rounded-2xl border border-border bg-surface p-4" style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}>
             <View className="mr-3 h-9 w-9 items-center justify-center rounded-xl bg-green-soft">
               <Feather name="shield" size={17} color={colors.green} />
             </View>

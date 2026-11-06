@@ -1,13 +1,13 @@
 import { Feather } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
 import { Pressable, View } from 'react-native';
-import { colors } from '@/constants/theme';
 import { Screen } from '@/components/Screen';
 import { Card, SectionHeader, T, TopBar } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useQuery } from '@/hooks/useQuery';
 import { useUnreadCount } from '@/hooks/useUnread';
 import { dashboardService } from '@/services/dashboard';
+import { useTheme } from '@/features/theme/ThemeProvider';
 
 interface Entry {
   href: Href;
@@ -19,6 +19,7 @@ interface Entry {
 }
 
 export default function SecurityHub() {
+  const theme = useTheme();
   const { can } = useAuth();
   const unread = useUnreadCount();
   const s = useQuery('dashboard:summary', dashboardService.summary).data?.safety;
@@ -44,8 +45,8 @@ export default function SecurityHub() {
         .filter((e) => can(e.ability))
         .map((e) => (
           <Card key={e.title} className="mb-2.5 flex-row items-center" onPress={() => router.push(e.href)}>
-            <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-bg">
-              <Feather name={e.icon} size={18} color={colors.navy} />
+            <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-bg" style={{ backgroundColor: theme.colors.bg }}>
+              <Feather name={e.icon} size={18} color={theme.colors.navy} />
             </View>
             <View className="flex-1">
               <T variant="bodyStrong">{e.title}</T>
@@ -56,7 +57,7 @@ export default function SecurityHub() {
                 <T className="font-semibold text-[12px] text-orange">{e.count}</T>
               </View>
             ) : null}
-            <Feather name="chevron-right" size={18} color={colors.faint} />
+            <Feather name="chevron-right" size={18} color={theme.colors.faint} />
           </Card>
         ))}
 

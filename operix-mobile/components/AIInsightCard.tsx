@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 import { colors } from '@/constants/theme';
+import { useTheme } from '@/features/theme/ThemeProvider';
 import { T } from './ui/Text';
 
 interface Props {
@@ -22,9 +23,10 @@ const toneMap = {
 
 /** Carte « intelligence » : bleu = analyse / donnée, jamais un chatbot. */
 export function AIInsightCard({ eyebrow, title, text, tone = 'blue', link, onLink, children }: Props) {
+  const theme = useTheme();
   const t = toneMap[tone];
   return (
-    <View className="mb-3 rounded-2xl border border-border bg-surface p-4">
+    <View className="mb-3 rounded-2xl border border-border bg-surface p-4" style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}>
       <View className="flex-row items-center">
         <View className={`mr-2 h-7 w-7 items-center justify-center rounded-lg ${t.bg}`}>
           <Feather name="cpu" size={14} color={t.fg} />

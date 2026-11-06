@@ -55,6 +55,15 @@ function locationPoint(r: GeoRow) {
   return { latitude: r.latitude, longitude: r.longitude, accuracy: r.location_accuracy, captured_at: iso(r.location_captured_at) };
 }
 
+function geoFromRecord(row: Record<string, unknown>): GeoRow {
+  return {
+    latitude: typeof row.latitude === "number" ? row.latitude : null,
+    longitude: typeof row.longitude === "number" ? row.longitude : null,
+    location_accuracy: typeof row.location_accuracy === "number" ? row.location_accuracy : null,
+    location_captured_at: row.location_captured_at instanceof Date ? row.location_captured_at : null,
+  };
+}
+
 function common(r: RecordRow) {
   return {
     id: r.id,
@@ -281,6 +290,7 @@ export async function updateIncident(ctx: Ctx, id: number, body: Body): Promise<
     ...geoFields(v),
   });
   v.done();
+  if (changes.status === "closed") ctx.require("incidents.close");
   if (Object.keys(changes).length > 0) {
     await sql`update operix.safety_incidents set ${sql(changes)} where id = ${id} and tenant_id = ${ctx.tenant.id}`;
   }
@@ -349,6 +359,46 @@ export async function createNearMiss(ctx: Ctx, body: Body): Promise<Response> {
   return json(nearMissResource(row, await signedUrls([row.image])), 201);
 }
 
+export async function updateNearMiss(ctx: Ctx, id: number, body: Body): Promise<Response> {
+  ctx.require("near_miss.update");
+  const sql = db();
+  await findNearMiss(sql, ctx.tenant.id, id);
+  const v = new Validator(body.fields);
+  const changes = compact({
+    date: v.has("date") ? v.date("date", { required: true }) : undefined,
+    time: v.string("time", { max: 20 }),
+    location: v.has("location") ? v.string("location", { required: true, max: 255 }) : undefined,
+    severity: v.has("severity") ? v.oneOf("severity", NEAR_MISS_SEVERITIES, { required: true }) : undefined,
+    description: v.has("description") ? v.string("description", { required: true, max: 10000 }) : undefined,
+    potential_consequence: v.string("potential_consequence", { max: 5000 }),
+    corrective_action: v.string("corrective_action", { max: 5000 }),
+    corrective_action_due: v.date("corrective_action_due"),
+    status: v.has("status") ? v.oneOf("status", STATUSES, { required: true }) : undefined,
+    ...geoFields(v),
+  });
+  v.done();
+  if (changes.status === "closed") ctx.require("near_miss.close");
+  if (Object.keys(changes).length > 0) {
+    await sql`update operix.safety_near_miss set ${sql(changes)} where id = ${id} and tenant_id = ${ctx.tenant.id}`;
+  }
+  const row = await findNearMiss(sql, ctx.tenant.id, id);
+  return json(nearMissResource(row, await signedUrls([row.image])));
+}
+
+export async function deleteIncident(ctx: Ctx, id: number): Promise<Response> {
+  ctx.require("incidents.delete");
+  await findIncident(db(), ctx.tenant.id, id);
+  await db()`update operix.safety_incidents set deleted_at = now() where id = ${id} and tenant_id = ${ctx.tenant.id}`;
+  return json({ message: "Incident archivé." });
+}
+
+export async function deleteNearMiss(ctx: Ctx, id: number): Promise<Response> {
+  ctx.require("near_miss.delete");
+  await findNearMiss(db(), ctx.tenant.id, id);
+  await db()`update operix.safety_near_miss set deleted_at = now() where id = ${id} and tenant_id = ${ctx.tenant.id}`;
+  return json({ message: "Presqu’accident archivé." });
+}
+
 // ── Infractions (encadrement HSSE) ──────────────────────────────────────────
 
 export async function createBreach(ctx: Ctx, body: Body): Promise<Response> {
@@ -357,6 +407,7 @@ export async function createBreach(ctx: Ctx, body: Body): Promise<Response> {
   const data = {
     employee_id: v.number("employee_id", { integer: true, min: 1 }),
     location: v.string("location", { max: 255 }),
+    ...geoFields(v),
     date: v.date("date", { required: true }),
     type: v.string("type", { required: true, max: 100 }),
     severity: v.oneOf("severity", RISK_LEVELS, { required: true }),
@@ -390,6 +441,7 @@ export async function createBreach(ctx: Ctx, body: Body): Promise<Response> {
     type: row.type,
     severity: row.severity,
     description: row.description,
+    location_point: locationPoint(geoFromRecord(row)),
     sanction: row.sanction,
     status: row.status,
     created_at: ymdHi(row.created_at as Date),

@@ -1,7 +1,7 @@
 /**
  * Operix AI — analyse d'une déclaration terrain.
  *
- * Claude si ANTHROPIC_API_KEY est défini (secret de l'Edge Function), sinon —
+ * Gemini ou Claude peuvent être appelés avec une clé serveur. Sans clé —
  * ou en cas d'échec — moteur de règles déterministe. Le champ `engine`
  * (`ai` | `rules`) dit toujours lequel a répondu ; le mobile l'affiche.
  * La clé ne quitte jamais le serveur.
@@ -230,7 +230,7 @@ export function analyzeWithRules(description: string, location: string | null): 
   } as unknown as Record<string, unknown>);
 }
 
-// ── Claude ──────────────────────────────────────────────────────────────────
+// ── Instructions communes aux fournisseurs ──────────────────────────────────
 
 const SYSTEM = `Tu es le moteur d'analyse sécurité (HSSE) d'OPERIX, utilisé sur des sites industriels
 à risques (ports, terminaux, mines, chantiers, énergie). À partir d'une déclaration terrain
@@ -248,7 +248,7 @@ Reste factuel : n'invente ni victime ni blessure non mentionnée. Si la photo co
 description, signale-le dans summary. confidence (0-100) mesure ta certitude sur les causes ;
 baisse-la quand la déclaration est vague.`;
 
-const CLAUDE_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 function toBase64(bytes: Uint8Array): string {
   let s = "";
@@ -262,8 +262,7 @@ export async function analyzeWithClaude(
   input: { description: string; location: string | null; eventType: string | null; image?: File },
 ): Promise<Analysis> {
   const content: Record<string, unknown>[] = [];
-  // Claude ne lit pas le HEIC : la photo est alors ignorée, la description suffit.
-  if (input.image && CLAUDE_IMAGE_TYPES.includes(input.image.type)) {
+  if (input.image && [...IMAGE_TYPES, "image/gif"].includes(input.image.type)) {
     content.push({
       type: "image",
       source: { type: "base64", media_type: input.image.type, data: toBase64(new Uint8Array(await input.image.arrayBuffer())) },
@@ -298,29 +297,131 @@ export async function analyzeWithClaude(
   return normalize(parsed as Record<string, unknown>);
 }
 
-/** Point d'entrée : Claude si configuré, règles sinon. Ajoute engine, model, duration_ms, analyzed_at. */
+const GEMINI_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    category: { type: "STRING" },
+    subcategory: { type: "STRING" },
+    risk_level: { type: "STRING", enum: [...RISK_LEVELS] },
+    incident_type: { type: "STRING", enum: [...INCIDENT_TYPES] },
+    confidence: { type: "INTEGER" },
+    summary: { type: "STRING" },
+    risks: { type: "ARRAY", items: { type: "STRING" } },
+    causes: { type: "ARRAY", items: { type: "STRING" } },
+    aggravating_factor: { type: "STRING", nullable: true },
+    legal_reference: { type: "STRING", nullable: true },
+    actions: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          priority: { type: "STRING", enum: [...PRIORITIES] },
+          delay_minutes: { type: "INTEGER" },
+          responsible_role: { type: "STRING" },
+          description: { type: "STRING" },
+        },
+        required: ["priority", "delay_minutes", "responsible_role", "description"],
+      },
+    },
+  },
+  required: [
+    "category", "subcategory", "risk_level", "incident_type", "confidence", "summary",
+    "risks", "causes", "aggravating_factor", "legal_reference", "actions",
+  ],
+};
+
+export async function analyzeWithGemini(
+  apiKey: string,
+  model: string,
+  input: { description: string; location: string | null; eventType: string | null; image?: File },
+): Promise<Analysis> {
+  const parts: Record<string, unknown>[] = [];
+  if (input.image && IMAGE_TYPES.includes(input.image.type)) {
+    parts.push({
+      inlineData: {
+        mimeType: input.image.type,
+        data: toBase64(new Uint8Array(await input.image.arrayBuffer())),
+      },
+    });
+  }
+  parts.push({
+    text: `Type déclaré : ${input.eventType || "incident"}\nLieu : ${input.location || "non précisé"}\nDescription terrain :\n${input.description}`,
+  });
+
+  const baseUrl = (Deno.env.get("GEMINI_BASE_URL") || "https://generativelanguage.googleapis.com").replace(/\/+$/, "");
+  const res = await fetch(`${baseUrl}/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
+    signal: AbortSignal.timeout(20_000),
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM }] },
+      contents: [{ role: "user", parts }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: GEMINI_SCHEMA,
+        maxOutputTokens: 2000,
+        temperature: 0.2,
+      },
+    }),
+  });
+  if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 300)}`);
+
+  const response = await res.json() as {
+    candidates?: {
+      finishReason?: string;
+      content?: { parts?: { text?: string }[] };
+    }[];
+    promptFeedback?: { blockReason?: string };
+  };
+  const candidate = response.candidates?.[0];
+  if (response.promptFeedback?.blockReason) throw new Error(`Gemini blocked prompt: ${response.promptFeedback.blockReason}`);
+  if (candidate?.finishReason === "MAX_TOKENS") throw new Error("Réponse Gemini tronquée");
+  const text = candidate?.content?.parts?.find((part) => typeof part.text === "string")?.text;
+  if (!text) throw new Error("Réponse Gemini vide");
+  const parsed: unknown = JSON.parse(text);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Réponse Gemini illisible");
+  return normalize(parsed as Record<string, unknown>);
+}
+
+/** Point d'entrée : Gemini ou Claude si configuré, sinon moteur de règles. */
 export async function analyze(input: { description: string; location: string | null; eventType: string | null; image?: File }) {
   const started = performance.now();
-  const key = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
-  const model = Deno.env.get("OPERIX_AI_MODEL") || "claude-opus-5-5";
+  const geminiKey = Deno.env.get("GEMINI_API_KEY") ?? "";
+  const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
+  const configuredProvider = Deno.env.get("OPERIX_AI_PROVIDER")?.trim().toLowerCase();
+  const provider = configuredProvider || (geminiKey ? "gemini" : anthropicKey ? "anthropic" : "rules");
+  const model = provider === "gemini"
+    ? Deno.env.get("OPERIX_GEMINI_MODEL") || "gemini-3.5-flash-lite"
+    : Deno.env.get("OPERIX_AI_MODEL") || "claude-opus-5-5";
 
   let engine: "ai" | "rules" = "rules";
+  let fallback_reason: "not_configured" | "provider_unavailable" | "rules_selected" | null = null;
   let result: Analysis | null = null;
-  if (key) {
+  if (provider === "gemini" || provider === "anthropic") {
     try {
-      result = await analyzeWithClaude(key, model, input);
+      if (provider === "gemini" && geminiKey) result = await analyzeWithGemini(geminiKey, model, input);
+      else if (provider === "anthropic" && anthropicKey) result = await analyzeWithClaude(anthropicKey, model, input);
+      else throw new Error(`La clé API du fournisseur ${provider} n'est pas configurée`);
       engine = "ai";
     } catch (e) {
-      // Détail en logs uniquement : le terrain reçoit une analyse de repli, pas une erreur.
-      console.warn("Operix AI : repli sur le moteur de règles —", e instanceof Error ? e.message : e);
+      fallback_reason = provider === "gemini" && !geminiKey || provider === "anthropic" && !anthropicKey
+        ? "not_configured"
+        : "provider_unavailable";
+      console.warn(`Operix AI (${provider}) : repli sur le moteur de règles —`, e instanceof Error ? e.message : e);
     }
+  } else if (provider !== "rules") {
+    fallback_reason = "provider_unavailable";
+    console.warn(`Operix AI : fournisseur non reconnu "${provider}", repli sur le moteur de règles`);
+  } else {
+    fallback_reason = configuredProvider === "rules" ? "rules_selected" : "not_configured";
   }
   result ??= analyzeWithRules(input.description, input.location);
 
   return {
     ...result,
     engine,
-    model: engine === "ai" ? model : null,
+    model: engine === "ai" ? `${provider}:${model}` : null,
+    fallback_reason: engine === "ai" ? null : fallback_reason,
     duration_ms: Math.round(performance.now() - started),
     analyzed_at: new Date().toISOString().replace(/\.\d{3}Z$/, "+00:00"),
   };

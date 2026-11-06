@@ -72,10 +72,31 @@ const claude = Deno.serve({ port: 0, onListen: () => {} }, async (req) => {
   return Response.json({ stop_reason: "end_turn", content: [{ type: "text", text: JSON.stringify(analysis) }] });
 });
 
+let lastGeminiRequest: Record<string, unknown> | null = null;
+let lastGeminiModel = "";
+let lastGeminiKey = "";
+const gemini = Deno.serve({ port: 0, onListen: () => {} }, async (req) => {
+  lastGeminiRequest = await req.json();
+  lastGeminiModel = new URL(req.url).pathname;
+  lastGeminiKey = req.headers.get("x-goog-api-key") ?? "";
+  const analysis = {
+    category: "Déversement d'hydrocarbure", subcategory: "Fuite hydraulique", risk_level: "high", incident_type: "HPI",
+    confidence: 86, summary: "Fuite active sur zone piétonne.", risks: ["Glissade", "Pollution"], causes: ["Flexible usé"],
+    aggravating_factor: null, legal_reference: null,
+    actions: [{ priority: "immediate", delay_minutes: 15, responsible_role: "Chef d'équipe", description: "Baliser la zone" }],
+  };
+  return Response.json({
+    candidates: [{ finishReason: "STOP", content: { parts: [{ text: JSON.stringify(analysis) }] } }],
+  });
+});
+
 Deno.env.set("SUPABASE_DB_URL", dbUrl);
 Deno.env.set("SUPABASE_URL", `http://127.0.0.1:${storage.addr.port}`);
 Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", SERVICE_KEY);
 Deno.env.delete("ANTHROPIC_API_KEY");
+Deno.env.delete("OPERIX_AI_PROVIDER");
+Deno.env.delete("GEMINI_API_KEY");
+Deno.env.delete("GEMINI_BASE_URL");
 
 const { handler } = await import("../supabase/functions/api/app.ts");
 const { closeDb, db } = await import("../supabase/functions/api/lib/db.ts");
@@ -110,7 +131,7 @@ const PNG = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAA
 const year = new Date().getUTCFullYear();
 const today = new Date().toISOString().slice(0, 10);
 
-let agent = "", supervisor = "", hse = "", admin = "";
+let agent = "", supervisor = "", hse = "", admin = "", tcnAdmin = "";
 let incidentId = 0;
 
 Deno.test({
@@ -202,7 +223,7 @@ Deno.test({
         form.set("image", new File([PNG], "photo.png", { type: "image/png" }));
         const a = await call("POST", "/ai/incidents/analyze", { token: agent, form });
         assertEquals(a.data.engine, "ai");
-        assertEquals(a.data.model, "claude-opus-5-5");
+        assertEquals(a.data.model, "anthropic:claude-opus-5-5");
         assertEquals(a.data.confidence, 86);
         const req = lastClaudeRequest!;
         assertEquals(req.model, "claude-opus-5-5");
@@ -217,6 +238,36 @@ Deno.test({
       } finally {
         Deno.env.delete("ANTHROPIC_API_KEY");
         Deno.env.delete("ANTHROPIC_BASE_URL");
+      }
+    });
+
+    await t.step("Analyse : chemin Gemini gratuit (faux serveur) → engine ai, JSON structuré", async () => {
+      Deno.env.set("GEMINI_API_KEY", "google-test-key");
+      Deno.env.set("OPERIX_AI_PROVIDER", "gemini");
+      Deno.env.set("GEMINI_BASE_URL", `http://127.0.0.1:${gemini.addr.port}`);
+      try {
+        const form = new FormData();
+        form.set("description", "Fuite d'huile hydraulique au pied du portique, sol glissant");
+        form.set("image", new File([PNG], "photo.png", { type: "image/png" }));
+        const a = await call("POST", "/ai/incidents/analyze", { token: agent, form });
+        assertEquals(a.status, 200, JSON.stringify(a.data));
+        assertEquals(a.data.engine, "ai");
+        assertEquals(a.data.model, "gemini:gemini-3.5-flash-lite");
+        assertEquals(a.data.confidence, 86);
+        assertEquals(lastGeminiModel, "/v1beta/models/gemini-3.5-flash-lite:generateContent");
+        assertEquals(lastGeminiKey, "google-test-key");
+        const req = lastGeminiRequest!;
+        // deno-lint-ignore no-explicit-any
+        const gen = req.generationConfig as any;
+        assertEquals(gen.responseMimeType, "application/json");
+        assertEquals(gen.responseSchema.additionalProperties, undefined);
+        // deno-lint-ignore no-explicit-any
+        const content = (req.contents as any)[0].parts;
+        assertEquals(content[0].inlineData.mimeType, "image/png");
+      } finally {
+        Deno.env.delete("GEMINI_API_KEY");
+        Deno.env.delete("OPERIX_AI_PROVIDER");
+        Deno.env.delete("GEMINI_BASE_URL");
       }
     });
 
@@ -260,6 +311,8 @@ Deno.test({
 
     await t.step("8. Déploiement du plan → 201, incident en investigation", async () => {
       const analysis = (await call("POST", "/ai/incidents/analyze", { token: agent, json: { description: "Fuite d'huile hydraulique au pied du portique, sol glissant", event_type: "incident" } })).data;
+      assertEquals(analysis.engine, "rules");
+      assertEquals(analysis.fallback_reason, "not_configured");
       const r = await call("POST", `/incidents/${incidentId}/actions/deploy`, { token: agent, json: { analysis: { ...analysis, risk_level: "critical" }, actions: analysis.actions } });
       assertEquals(r.status, 201, JSON.stringify(r.data));
       assertEquals(r.data.data.length, 4);
@@ -310,6 +363,10 @@ Deno.test({
       assertEquals(r.status, 200);
       assertEquals(r.data.root_cause, "Plan de maintenance incomplet");
       assertEquals(r.data.status, "in_progress");
+      assertEquals((await call("PUT", `/incidents/${incidentId}`, { token: supervisor, json: { status: "closed" } })).status, 403);
+      const closed = await call("PUT", `/incidents/${incidentId}`, { token: hse, json: { status: "closed" } });
+      assertEquals(closed.status, 200, JSON.stringify(closed.data));
+      assertEquals(closed.data.status, "closed");
     });
 
     await t.step("14. Notifications : encadrement notifié, déclarant non", async () => {
@@ -344,11 +401,23 @@ Deno.test({
     });
 
     await t.step("Infractions : agent 403, responsable HSSE 201", async () => {
-      const body = { date: today, location: "Quai 3", type: "Non-respect des règles", severity: "medium", description: "Absence de gilet" };
+      const body = {
+        date: today,
+        location: "Quai 3",
+        type: "Non-respect des règles",
+        severity: "medium",
+        description: "Absence de gilet",
+        latitude: 18.08561,
+        longitude: -15.97742,
+        location_accuracy: 6,
+        location_captured_at: new Date().toISOString(),
+      };
       assertEquals((await call("POST", "/breaches", { token: agent, json: body })).status, 403);
       const r = await call("POST", "/breaches", { token: hse, json: body });
       assertEquals(r.status, 201);
       assertEquals(r.data.reference, `INF-${year}-0001`);
+      assertEquals(r.data.location_point.latitude, 18.08561);
+      assertEquals(r.data.location_point.accuracy, 6);
     });
 
     await t.step("Registre incidents : filtres et pagination", async () => {
@@ -480,7 +549,7 @@ Deno.test({
       await db()`select operix.create_user('tcn', 'TCN-SUP-001', 'Tcn@2026!', 'Superviseur TCN', 'supervisor')`;
       await db()`select operix.create_user('tcn', 'TCN-ADM-001', 'TcnAdmin@2026!', 'Admin TCN', 'company_admin')`;
       const tcn = await login("TCN-SUP-001", "Tcn@2026!");
-      const tcnAdmin = await login("TCN-ADM-001", "TcnAdmin@2026!");
+      tcnAdmin = await login("TCN-ADM-001", "TcnAdmin@2026!");
       assertEquals((await call("GET", `/incidents/${incidentId}`, { token: tcn })).status, 404);
       assertEquals((await call("GET", "/incidents", { token: tcn })).data.meta.total, 0);
       assertEquals((await call("GET", `/incidents/${incidentId}/actions`, { token: tcn })).status, 404);
@@ -512,6 +581,87 @@ Deno.test({
       // La première référence TCN repart de 0001 : numérotation par entreprise.
       const r = await call("POST", "/incidents", { token: tcn, json: { date: today, location: "Quai", type: "Autre", severity: "low", description: "TCN" } });
       assertEquals(r.data.reference, `INC-${year}-0001`);
+    });
+
+    await t.step("Plateforme : gestion multi-société et CRUD des dossiers", async () => {
+      assertEquals((await call("GET", "/platform/companies", { token: admin })).status, 403);
+      const [{ id: platformUserId }] = await db()<[{ id: number }]>`
+        select id from operix.users where matricule = 'DEMO-ADM-001'`;
+      await db()`insert into operix.platform_admins (user_id) values (${platformUserId})`;
+
+      const me = await call("GET", "/auth/me", { token: admin });
+      assertEquals(me.status, 200);
+      assert(me.data.abilities.includes("platform.manage"));
+      assertEquals(me.data.is_platform_admin, true);
+
+      const createdCompany = await call("POST", "/platform/companies", {
+        token: admin,
+        json: { slug: "platform-test", name: "Platform Test", short_name: "PT", country: "Mauritania", timezone: "UTC" },
+      });
+      assertEquals(createdCompany.status, 201, JSON.stringify(createdCompany.data));
+      const companyId = createdCompany.data.id as number;
+      const companyUsers = await call("GET", `/platform/companies/${companyId}/users`, { token: admin });
+      assertEquals(companyUsers.status, 200);
+      assertEquals(companyUsers.data.meta.total, 0);
+      assertEquals(companyUsers.data.sites.length, 1);
+      const companyAdmin = await call("POST", `/platform/companies/${companyId}/users`, {
+        token: admin,
+        json: {
+          first_name: "Test",
+          last_name: "Admin",
+          matricule: "PLATFORM-TEST-ADMIN",
+          pin: "Platform@2026",
+          pin_confirmation: "Platform@2026",
+          role: "company_admin",
+          site_id: companyUsers.data.sites[0].id,
+          is_active: true,
+        },
+      });
+      assertEquals(companyAdmin.status, 201, JSON.stringify(companyAdmin.data));
+
+      const incident = await call("POST", `/platform/companies/${companyId}/incidents`, {
+        token: admin,
+        json: { date: today, location: "Atelier test", type: "Autre", severity: "low", description: "Incident plateforme test" },
+      });
+      assertEquals(incident.status, 201, JSON.stringify(incident.data));
+      assertEquals((await call("PUT", `/platform/companies/${companyId}/incidents/${incident.data.id}`, {
+        token: admin,
+        json: { description: "Incident plateforme modifié" },
+      })).status, 200);
+      assertEquals((await call("DELETE", `/platform/companies/${companyId}/incidents/${incident.data.id}`, { token: admin })).status, 200);
+
+      const nearMiss = await call("POST", `/platform/companies/${companyId}/near-miss`, {
+        token: admin,
+        json: { date: today, location: "Quai test", severity: "medium", description: "Presqu’accident plateforme test" },
+      });
+      assertEquals(nearMiss.status, 201, JSON.stringify(nearMiss.data));
+      assertEquals((await call("PUT", `/platform/companies/${companyId}/near-miss/${nearMiss.data.id}`, {
+        token: admin,
+        json: { description: "Presqu’accident modifié" },
+      })).status, 200);
+      assertEquals((await call("DELETE", `/platform/companies/${companyId}/near-miss/${nearMiss.data.id}`, { token: admin })).status, 200);
+
+      const breach = await call("POST", `/platform/companies/${companyId}/breaches`, {
+        token: admin,
+        json: { date: today, type: "EPI", severity: "medium", description: "Violation plateforme test" },
+      });
+      assertEquals(breach.status, 201, JSON.stringify(breach.data));
+      assertEquals((await call("GET", `/platform/companies/${companyId}/breaches`, { token: admin })).data.meta.total, 1);
+      assertEquals((await call("PUT", `/platform/companies/${companyId}/breaches/${breach.data.id}`, {
+        token: admin,
+        json: { description: "Violation modifiée" },
+      })).status, 200);
+      assertEquals((await call("DELETE", `/platform/companies/${companyId}/breaches/${breach.data.id}`, { token: admin })).status, 200);
+      assertEquals((await call("GET", `/platform/companies/${companyId}/breaches`, { token: admin })).data.meta.total, 0);
+      assertEquals((await call("GET", "/platform/companies", { token: tcnAdmin })).status, 403);
+
+      const updatedCompany = await call("PUT", `/platform/companies/${companyId}`, {
+        token: admin,
+        json: { name: "Platform Test Updated", status: "active" },
+      });
+      assertEquals(updatedCompany.status, 200);
+      assertEquals(updatedCompany.data.name, "Platform Test Updated");
+      assertEquals((await call("DELETE", `/platform/companies/${companyId}`, { token: admin })).data.status, "suspended");
     });
 
     await t.step("16-17. Déconnexion : le jeton est révoqué", async () => {

@@ -13,6 +13,7 @@ import { useQuery } from '@/hooks/useQuery';
 import { useUnreadCount } from '@/hooks/useUnread';
 import { errorMessage } from '@/services/api';
 import { loadInsights } from '@/services/insights';
+import { useTheme } from '@/features/theme/ThemeProvider';
 
 const PERIODS: { key: InsightPeriod; label: string }[] = [
   { key: '7J', label: '7J' },
@@ -24,6 +25,7 @@ const PERIODS: { key: InsightPeriod; label: string }[] = [
 const ZONE_COLORS = [colors.red, colors.orange, colors.blue, colors.faint];
 
 export default function InsightsScreen() {
+  const theme = useTheme();
   const unread = useUnreadCount();
   const [period, setPeriod] = useState<InsightPeriod>('30J');
   const q = useQuery(`insights:${period}`, () => loadInsights(period));
@@ -51,7 +53,7 @@ export default function InsightsScreen() {
         <ErrorState message={errorMessage(q.error)} onRetry={q.refresh} />
       ) : (
         <>
-          <View className="mt-4 rounded-2xl bg-navy p-5">
+          <View className="mt-4 rounded-2xl bg-navy p-5" style={{ backgroundColor: theme.scheme === 'dark' ? theme.colors.navySoft : '#1E2A3D' }}>
             <T className="font-semibold text-[11px] tracking-[1px] text-[#AEB7C7]">INDICE DE PRÉVENTION GLOBALE</T>
             <View className="mt-2 flex-row items-end">
               <T className="font-bold text-[44px] leading-[48px] text-white">{d.preventionIndex}</T>

@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '@/constants/theme';
 import { OfflineBanner } from './OfflineBanner';
+import { useTheme } from '@/features/theme/ThemeProvider';
 
 interface ScreenProps {
   header?: ReactNode;
@@ -15,6 +15,7 @@ interface ScreenProps {
 }
 
 export function Screen({ header, children, scroll = true, refreshing = false, onRefresh, tabBarSpace }: ScreenProps) {
+  const { colors } = useTheme();
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.bg }}>
       {header}

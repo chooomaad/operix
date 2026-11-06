@@ -28,6 +28,7 @@ export interface User {
   avatar: string | null;
   is_active: boolean;
   last_login_at: Date | null;
+  is_platform_admin?: boolean;
 }
 
 /** Contexte d'une requête authentifiée. */
@@ -35,6 +36,7 @@ export interface Ctx {
   user: User;
   tenant: Tenant;
   tokenId: number;
+  isPlatformAdmin: boolean;
   can(permission: string): boolean;
   /** Lève 403 si la permission manque (équivalent du middleware `permission:`). */
   require(permission: string): void;
@@ -75,11 +77,13 @@ function bearer(req: Request): string | null {
 }
 
 export function makeCtx(user: User, tenant: Tenant, tokenId: number): Ctx {
-  const can = (p: string) => roleCan(user.role, p);
+  const isPlatformAdmin = user.is_platform_admin === true;
+  const can = (p: string) => isPlatformAdmin && p === "platform.manage" || roleCan(user.role, p);
   return {
     user,
     tenant,
     tokenId,
+    isPlatformAdmin,
     can,
     require(p: string) {
       if (!can(p)) throw forbidden();
@@ -99,6 +103,7 @@ export async function authenticate(req: Request): Promise<Ctx> {
   const rows = await sql<(User & { token_id: number; token_last_used: Date | null; t: Tenant })[]>`
     select u.id, u.tenant_id, u.name, u.email, u.role, u.matricule, u.phone, u.avatar,
            u.is_active, u.last_login_at, k.id as token_id, k.last_used_at as token_last_used,
+           exists (select 1 from operix.platform_admins p where p.user_id = u.id) as is_platform_admin,
            row_to_json(t.*) as t
       from operix.api_tokens k
       join operix.users u on u.id = k.user_id
@@ -176,7 +181,8 @@ export function sessionPayload(ctx: Ctx) {
   return {
     user: formatUser(ctx.user),
     tenant: tenantInfo(ctx.tenant),
-    abilities: abilitiesFor(ctx.user.role),
+    abilities: [...abilitiesFor(ctx.user.role), ...(ctx.isPlatformAdmin ? ["platform.manage"] : [])],
+    is_platform_admin: ctx.isPlatformAdmin,
     organisation: orgInfo(ctx.tenant),
   };
 }

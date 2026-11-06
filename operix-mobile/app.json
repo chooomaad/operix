@@ -12,12 +12,45 @@
       "expo-router",
       "expo-secure-store",
       "expo-font",
-      ["expo-splash-screen", { "image": "./assets/operix-logo.png", "backgroundColor": "#F7F8FC", "imageWidth": 220 }],
-      ["expo-camera", { "cameraPermission": "OPERIX utilise la caméra pour photographier les preuves terrain." }],
-      ["expo-image-picker", { "photosPermission": "OPERIX accède à vos photos pour joindre une preuve à une déclaration." }],
-      ["expo-location", { "locationWhenInUsePermission": "OPERIX géolocalise les événements déclarés." }],
-      ["expo-local-authentication", { "faceIDPermission": "Connexion biométrique OPERIX." }],
-      ["expo-speech-recognition", { "microphonePermission": "OPERIX transcrit votre constat vocal.", "speechRecognitionPermission": "OPERIX transcrit votre constat vocal." }],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/operix-logo.png",
+          "backgroundColor": "#F7F8FC",
+          "imageWidth": 220
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "OPERIX utilise la caméra pour photographier les preuves terrain."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "OPERIX accède à vos photos pour joindre une preuve à une déclaration."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "OPERIX géolocalise les événements déclarés."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Connexion biométrique OPERIX."
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "OPERIX transcrit votre constat vocal.",
+          "speechRecognitionPermission": "OPERIX transcrit votre constat vocal."
+        }
+      ],
       "expo-notifications"
     ],
     "android": {
@@ -26,12 +59,36 @@
         "backgroundColor": "#F7F8FC",
         "foregroundImage": "./assets/operix-adaptive-foreground.png"
       },
-      "permissions": ["CAMERA", "ACCESS_FINE_LOCATION", "RECORD_AUDIO", "USE_BIOMETRIC"]
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.USE_FINGERPRINT"
+      ]
     },
-    "ios": { "bundleIdentifier": "com.operix.mobile", "supportsTablet": false },
-    "experiments": { "typedRoutes": true },
+    "ios": {
+      "bundleIdentifier": "com.operix.mobile",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSSpeechRecognitionUsageDescription": "OPERIX transcrit votre constat vocal.",
+        "NSMicrophoneUsageDescription": "OPERIX transcrit votre constat vocal."
+      }
+    },
+    "experiments": {
+      "typedRoutes": true
+    },
     "extra": {
-      "apiUrl": "https://<REF_DU_PROJET>.supabase.co/functions/v1/api/v1"
+      "apiUrl": "https://vnsuwwglgbqumizqsvoy.supabase.co/functions/v1/api/v1",
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "c8653c6b-fc83-4fd5-9864-fbec5721bcf2"
+      }
     }
   }
 }

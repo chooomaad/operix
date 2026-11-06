@@ -5,10 +5,10 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { colors } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
 import { DeclareProvider } from '@/features/declare/DeclareProvider';
 import { SplashView } from '@/features/auth/SplashView';
+import { ThemeProvider, useTheme } from '@/features/theme/ThemeProvider';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -17,6 +17,7 @@ const MIN_SPLASH_MS = 1600;
 
 function RootNavigator() {
   const { status } = useAuth();
+  const theme = useTheme();
   const [minElapsed, setMinElapsed] = useState(false);
 
   useEffect(() => {
@@ -29,7 +30,7 @@ function RootNavigator() {
 
   const signedIn = status === 'signedIn';
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg }, animation: 'slide_from_right' }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.bg }, animation: 'slide_from_right' }}>
       <Stack.Protected guard={signedIn}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="declare" options={{ animation: 'slide_from_bottom' }} />
@@ -54,12 +55,19 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" />
-      <AuthProvider>
-        <DeclareProvider>
-          <RootNavigator />
-        </DeclareProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <ThemeStatusBar />
+        <AuthProvider>
+          <DeclareProvider>
+            <RootNavigator />
+          </DeclareProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
+}
+
+function ThemeStatusBar() {
+  const { scheme } = useTheme();
+  return <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />;
 }

@@ -1,12 +1,44 @@
 import { authenticate, type Ctx } from "./lib/auth.ts";
 import { type Body, CORS_HEADERS, errorResponse, HttpError, json, readBody } from "./lib/http.ts";
-import { createAdminUser, listAdminSites, listAdminUsers, updateAdminUser } from "./routes/admin.ts";
+import {
+  createAdminEmployee,
+  importAdminEmployees,
+  createAdminUser,
+  listAdminEmployees,
+  listAdminSites,
+  listAdminUsers,
+  updateAdminEmployee,
+  updateAdminUser,
+} from "./routes/admin.ts";
 import { analyzeIncident, deployActions, listIncidentActions, listOpenActions, updateAction } from "./routes/actions.ts";
 import { login, logout, me } from "./routes/auth.ts";
 import { agentEmployeeSearch, dashboard, incidentStats, listEmployees, recentActivity, safetyTracker, topZones } from "./routes/dashboard.ts";
 import { listNotifications, markAllRead, markRead, unreadCount } from "./routes/notifications.ts";
-import { createBreach, createIncident, createNearMiss, listIncidents, listNearMiss, showIncident, showNearMiss, updateIncident } from "./routes/records.ts";
+import {
+  createBreach,
+  createIncident,
+  createNearMiss,
+  deleteIncident,
+  deleteNearMiss,
+  listIncidents,
+  listNearMiss,
+  showIncident,
+  showNearMiss,
+  updateIncident,
+  updateNearMiss,
+} from "./routes/records.ts";
 import { incidentPdf } from "./routes/reports.ts";
+import {
+  createPlatformBreach,
+  createPlatformCompany,
+  deletePlatformBreach,
+  listPlatformBreaches,
+  listPlatformCompanies,
+  platformTenantContext,
+  suspendPlatformCompany,
+  updatePlatformBreach,
+  updatePlatformCompany,
+} from "./routes/platform.ts";
 
 /**
  * Routes /api/v1 utilisées par l'application mobile OPERIX, à l'identique de
@@ -45,6 +77,10 @@ on("GET", "/admin/sites", (_r, c) => listAdminSites(c));
 on("GET", "/admin/users", (r, c) => listAdminUsers(c, r.url));
 on("POST", "/admin/users", async (r, c) => createAdminUser(c, await r.body()));
 on("PUT", `/admin/users/${ID}`, async (r, c) => updateAdminUser(c, num(r.params[0]), await r.body()));
+on("GET", "/admin/employees", (r, c) => listAdminEmployees(c, r.url));
+on("POST", "/admin/employees", async (r, c) => createAdminEmployee(c, await r.body()));
+on("POST", "/admin/employees/import", async (r, c) => importAdminEmployees(c, await r.body()));
+on("PUT", `/admin/employees/${ID}`, async (r, c) => updateAdminEmployee(c, num(r.params[0]), await r.body()));
 
 // Tableau de bord
 on("GET", "/dashboard", (_r, c) => dashboard(c));
@@ -71,6 +107,33 @@ on("GET", "/near-miss", (r, c) => listNearMiss(c, r.url));
 on("POST", "/near-miss", async (r, c) => createNearMiss(c, await r.body()));
 on("GET", `/near-miss/${ID}`, (r, c) => showNearMiss(c, num(r.params[0])));
 on("POST", "/breaches", async (r, c) => createBreach(c, await r.body()));
+
+// Administration plateforme : la société cible est explicite et résolue côté serveur.
+on("GET", "/platform/companies", (_r, c) => listPlatformCompanies(c));
+on("POST", "/platform/companies", async (r, c) => createPlatformCompany(c, await r.body()));
+on("PUT", `/platform/companies/${ID}`, async (r, c) => updatePlatformCompany(c, num(r.params[0]), await r.body()));
+on("DELETE", `/platform/companies/${ID}`, (r, c) => suspendPlatformCompany(c, num(r.params[0])));
+on("GET", `/platform/companies/${ID}/users`, async (r, c) => listAdminUsers(await platformTenantContext(c, num(r.params[0])), r.url));
+on("POST", `/platform/companies/${ID}/users`, async (r, c) => createAdminUser(await platformTenantContext(c, num(r.params[0])), await r.body()));
+on("PUT", `/platform/companies/${ID}/users/${ID}`, async (r, c) => updateAdminUser(await platformTenantContext(c, num(r.params[0])), num(r.params[1]), await r.body()));
+on("GET", `/platform/companies/${ID}/employees`, async (r, c) => listAdminEmployees(await platformTenantContext(c, num(r.params[0])), r.url));
+on("POST", `/platform/companies/${ID}/employees`, async (r, c) => createAdminEmployee(await platformTenantContext(c, num(r.params[0])), await r.body()));
+on("POST", `/platform/companies/${ID}/employees/import`, async (r, c) => importAdminEmployees(await platformTenantContext(c, num(r.params[0])), await r.body()));
+on("PUT", `/platform/companies/${ID}/employees/${ID}`, async (r, c) => updateAdminEmployee(await platformTenantContext(c, num(r.params[0])), num(r.params[1]), await r.body()));
+on("GET", `/platform/companies/${ID}/incidents`, async (r, c) => listIncidents(await platformTenantContext(c, num(r.params[0])), r.url));
+on("POST", `/platform/companies/${ID}/incidents`, async (r, c) => createIncident(await platformTenantContext(c, num(r.params[0])), await r.body()));
+on("GET", `/platform/companies/${ID}/incidents/${ID}`, async (r, c) => showIncident(await platformTenantContext(c, num(r.params[0])), num(r.params[1])));
+on("PUT", `/platform/companies/${ID}/incidents/${ID}`, async (r, c) => updateIncident(await platformTenantContext(c, num(r.params[0])), num(r.params[1]), await r.body()));
+on("DELETE", `/platform/companies/${ID}/incidents/${ID}`, async (r, c) => deleteIncident(await platformTenantContext(c, num(r.params[0])), num(r.params[1])));
+on("GET", `/platform/companies/${ID}/near-miss`, async (r, c) => listNearMiss(await platformTenantContext(c, num(r.params[0])), r.url));
+on("POST", `/platform/companies/${ID}/near-miss`, async (r, c) => createNearMiss(await platformTenantContext(c, num(r.params[0])), await r.body()));
+on("GET", `/platform/companies/${ID}/near-miss/${ID}`, async (r, c) => showNearMiss(await platformTenantContext(c, num(r.params[0])), num(r.params[1])));
+on("PUT", `/platform/companies/${ID}/near-miss/${ID}`, async (r, c) => updateNearMiss(await platformTenantContext(c, num(r.params[0])), num(r.params[1]), await r.body()));
+on("DELETE", `/platform/companies/${ID}/near-miss/${ID}`, async (r, c) => deleteNearMiss(await platformTenantContext(c, num(r.params[0])), num(r.params[1])));
+on("GET", `/platform/companies/${ID}/breaches`, async (r, c) => listPlatformBreaches(await platformTenantContext(c, num(r.params[0])), r.url));
+on("POST", `/platform/companies/${ID}/breaches`, async (r, c) => createPlatformBreach(await platformTenantContext(c, num(r.params[0])), await r.body()));
+on("PUT", `/platform/companies/${ID}/breaches/${ID}`, async (r, c) => updatePlatformBreach(await platformTenantContext(c, num(r.params[0])), num(r.params[1]), await r.body()));
+on("DELETE", `/platform/companies/${ID}/breaches/${ID}`, async (r, c) => deletePlatformBreach(await platformTenantContext(c, num(r.params[0])), num(r.params[1])));
 
 // Notifications
 on("GET", "/notifications", (r, c) => listNotifications(c, r.url));

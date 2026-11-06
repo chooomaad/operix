@@ -14,6 +14,16 @@ npx expo prebuild && npx expo run:android
 La dictée vocale (`expo-speech-recognition`) et la biométrie sont des modules natifs :
 utiliser un **development build**, pas Expo Go.
 
+Après l'ajout ou la modification d'un module natif, reconstruisez et réinstallez l'APK
+(`npm run build:apk`). Une mise à jour JavaScript seule ou Expo Go ne peut pas ajouter
+`expo-speech-recognition` à une application Android déjà installée.
+
+Sur iPhone, les permissions microphone et reconnaissance vocale sont configurées dans
+`app.json`. Il faut aussi créer et installer un build iOS natif (`npm run build:ios`) :
+un APK Android ne peut pas être installé sur iPhone. Un build iOS de distribution
+interne nécessite un compte Apple Developer et l'enregistrement de l'appareil auprès
+d'Expo/EAS.
+
 APK de démonstration : `npm run build:apk` (EAS, profil `preview`).
 
 ### Tester sur iPhone (SDK 58)
@@ -32,6 +42,12 @@ Developer.
 
 Version navigateur (démo sur ordinateur, recette) : `npx expo start --web`. Le jeton y est
 gardé dans le stockage du navigateur au lieu du coffre sécurisé du téléphone.
+
+Dans **Paramètres → Apparence**, le thème clair/sombre est mémorisé sur l'appareil; le thème
+sombre utilise des tons anthracite. La déclaration demande la position GPS au premier plan
+sans demander de lieu à saisir. Si la permission est refusée ou le GPS indisponible, la
+déclaration reste possible. **Décrire vocalement** dicte le texte dans le constat; aucun
+fichier audio n'est envoyé à l'API OPERIX.
 
 ## Côté serveur
 
@@ -62,7 +78,7 @@ Servis par l'Edge Function `api` d'operix-supabase (identiques à l'ancienne API
 - ★ `POST /ai/incidents/analyze` — analyse sans écriture
 - ★ `POST /incidents/{id}/actions/deploy`, `GET /incidents/{id}/actions`, `PUT /incidents/{id}/actions/{actionId}`, `GET /incident-actions`
 - `GET /notifications`, `/notifications/unread-count`, `PUT /notifications/{id}/read`, `POST /notifications/read-all`
-- `GET /agent/employees/search` (agent) ou `GET /employees` (encadrement)
+- `GET /agent/employees/search` (agent, recherche par matricule/nom à partir de 2 caractères) ou `GET /employees` (encadrement autorisé, liste initiale et recherche avec pagination)
 - `GET /reports/incidents/{id}` (PDF, encadrement)
 
 ## Choix assumés
@@ -74,4 +90,5 @@ Servis par l'Edge Function `api` d'operix-supabase (identiques à l'ancienne API
 - **Hors-ligne réel** : incidents et near-miss sont mis en file locale (photo copiée) et rejoués
   au retour du réseau. L'analyse IA exige le réseau.
 - **Une photo par déclaration** : l'API stocke une image par incident (`image`, 5 Mo).
-- **Clôture** : exige un rapport PDF côté API → faite depuis le web.
+- **Clôture** : réservée au portail web aux rôles autorisés; l'état est partagé avec le
+  mobile et visible après actualisation. La fiche d'audit PDF est téléchargeable séparément.

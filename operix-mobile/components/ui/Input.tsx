@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { FlatList, Modal, Pressable, TextInput, View, type TextInputProps } from 'react-native';
 import { colors } from '@/constants/theme';
 import { T } from './Text';
+import { useTheme } from '@/features/theme/ThemeProvider';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -12,8 +13,9 @@ interface InputProps extends TextInputProps {
 }
 
 export function Input({ label, hint, error, icon, multiline, style, ...rest }: InputProps) {
+  const theme = useTheme();
   const [focused, setFocused] = useState(false);
-  const border = error ? colors.red : focused ? colors.green : colors.border;
+  const border = error ? colors.red : focused ? colors.green : theme.colors.border;
   return (
     <View className="mb-4">
       {label ? (
@@ -21,16 +23,16 @@ export function Input({ label, hint, error, icon, multiline, style, ...rest }: I
           {label}
         </T>
       ) : null}
-      <View className="flex-row rounded-xl bg-bg px-3.5" style={{ borderWidth: 1, borderColor: border, alignItems: multiline ? 'flex-start' : 'center' }}>
+      <View className="flex-row rounded-xl bg-bg px-3.5" style={{ borderWidth: 1, borderColor: border, backgroundColor: theme.colors.bg, alignItems: multiline ? 'flex-start' : 'center' }}>
         {icon ? <Feather name={icon} size={17} color={colors.faint} style={{ marginRight: 10, marginTop: multiline ? 14 : 0 }} /> : null}
         <TextInput
-          placeholderTextColor={colors.faint}
+          placeholderTextColor={theme.colors.faint}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           multiline={multiline}
           textAlignVertical={multiline ? 'top' : 'center'}
           className="flex-1 font-regular text-[15px] text-ink"
-          style={[{ minHeight: multiline ? 120 : 50, paddingVertical: multiline ? 12 : 0 }, style]}
+          style={[{ minHeight: multiline ? 120 : 50, paddingVertical: multiline ? 12 : 0, color: theme.colors.ink }, style]}
           {...rest}
         />
       </View>

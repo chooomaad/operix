@@ -5,13 +5,18 @@ import {
   ROLE_LABELS,
   ROLES,
   createUser,
+  getPlatformCompanies,
   getUsers,
   login,
   logout,
   setAccessToken,
   updateUser,
 } from './api';
-import type { AdminSession, AdminUser, Site, UserForm } from './api';
+import type { AdminSession, AdminUser, Company, Site, UserForm } from './api';
+import Companies from './Companies';
+import Employees from './Employees';
+import Incidents from './Incidents';
+import Records from './Records';
 
 const EMPTY_FORM: UserForm = {
   first_name: '',
@@ -161,6 +166,8 @@ function Login({ onLogin }: { onLogin: (session: AdminSession) => void }) {
 
 export default function App() {
   const [session, setSession] = useState<AdminSession | null>(null);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [total, setTotal] = useState(0);
@@ -174,6 +181,13 @@ export default function App() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [editing, setEditing] = useState<AdminUser | null | undefined>(undefined);
+  const [section, setSection] = useState<'users' | 'companies' | 'employees' | 'incidents' | 'near-miss' | 'breaches'>('users');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => localStorage.getItem('operix-admin-theme') === 'dark' ? 'dark' : 'light');
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('operix-admin-theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     if (!session) return;
@@ -186,7 +200,8 @@ export default function App() {
       if (role) query.set('role', role);
       if (siteId) query.set('site_id', siteId);
       if (status) query.set('status', status);
-      getUsers(query, controller.signal)
+      const tenantId = session.abilities.includes('platform.manage') ? selectedTenantId ?? session.tenant?.id : undefined;
+      getUsers(query, controller.signal, tenantId)
         .then((result) => {
           setUsers(result.data);
           setTotal(result.meta.total);
@@ -203,14 +218,36 @@ export default function App() {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [session, search, role, siteId, status, page, reload]);
+  }, [session, selectedTenantId, search, role, siteId, status, page, reload]);
+
+  useEffect(() => {
+    if (!session?.abilities.includes('platform.manage')) return;
+    let active = true;
+    getPlatformCompanies()
+      .then((result) => {
+        if (!active) return;
+        setCompanies(result.data);
+        if (selectedTenantId === null && session.tenant) setSelectedTenantId(session.tenant.id);
+      })
+      .catch((loadError: unknown) => { if (active) setError(message(loadError)); });
+    return () => { active = false; };
+  }, [session]);
 
   const save = async (form: UserForm) => {
     if (form.pin && form.pin !== form.pin_confirmation) throw new ApiError('La confirmation du PIN ne correspond pas.', 422);
-    if (editing) await updateUser(editing.id, form);
-    else await createUser(form);
+    const tenantId = session?.abilities.includes('platform.manage') ? selectedTenantId ?? session.tenant?.id : undefined;
+    if (editing) await updateUser(editing.id, form, tenantId);
+    else await createUser(form, tenantId);
     setEditing(undefined);
     setNotice(editing ? 'Le compte a été mis à jour.' : 'L’utilisateur a été créé.');
+    setReload((value) => value + 1);
+  };
+
+  const selectCompany = (company: Company) => {
+    setCompanies((current) => [...current.filter((item) => item.id !== company.id), company].sort((a, b) => a.name.localeCompare(b.name)));
+    setSelectedTenantId(company.id);
+    setSection('users');
+    setPage(1);
     setReload((value) => value + 1);
   };
 
@@ -226,9 +263,15 @@ export default function App() {
     }
   };
 
-  if (!session) return <Login onLogin={(next) => setSession(next)} />;
+  if (!session) return <div className="app-theme"><Login onLogin={(next) => { setSession(next); setSelectedTenantId(next.tenant?.id ?? null); }} /></div>;
+
+  const isPlatformAdmin = session.abilities.includes('platform.manage');
+  const tenantId = isPlatformAdmin ? selectedTenantId ?? session.tenant?.id : undefined;
+  const selectedCompany = companies.find((company) => company.id === tenantId);
+  const tenantName = selectedCompany?.name ?? session.tenant?.name ?? 'Société';
 
   return (
+    <div className={`app-theme ${theme === 'dark' ? 'theme-dark' : ''}`}>
     <div className="admin-shell">
       <header className="topbar">
         <a className="brand" href="/" aria-label="OPERIX Administration">
@@ -236,19 +279,36 @@ export default function App() {
           <span>OPERIX <small>ADMINISTRATION</small></span>
         </a>
         <div className="account">
-          <div className="account-copy"><strong>{session.user.name}</strong><span>{session.tenant?.name ?? 'Société'}</span></div>
+          <div className="account-copy"><strong>{session.user.name}</strong><span>{isPlatformAdmin ? `Plateforme · ${tenantName}` : tenantName}</span></div>
+          {isPlatformAdmin && <label className="company-switch"><span className="sr-only">Société gérée</span><select aria-label="Société gérée" value={tenantId ?? ''} onChange={(event) => { setSelectedTenantId(event.target.value ? Number(event.target.value) : null); setSection('users'); setPage(1); setReload((value) => value + 1); }}><option value="" disabled>Choisir une société</option>{companies.map((company) => <option key={company.id} value={company.id}>{company.name}{company.status === 'suspended' ? ' (suspendue)' : ''}</option>)}</select></label>}
+          <button className="button secondary compact" onClick={() => setTheme((value) => value === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Activer le thème clair' : 'Activer le thème sombre'}>{theme === 'dark' ? '☀️ Clair' : '🌙 Sombre'}</button>
           <button className="button secondary compact" onClick={() => void signOut()}>Déconnexion</button>
         </div>
       </header>
-      <main className="content">
+      {section === 'companies' && isPlatformAdmin ? (
+        <Companies selectedId={tenantId ?? null} onSelect={selectCompany} />
+      ) : section === 'employees' ? (
+        <Employees onBack={() => setSection('users')} tenantId={tenantId} />
+      ) : section === 'incidents' ? (
+        <Incidents onBack={() => setSection('users')} canClose={session.abilities.includes('incidents.close')} tenantId={tenantId} />
+      ) : section === 'near-miss' || section === 'breaches' ? (
+        <Records kind={section} onBack={() => setSection('users')} tenantId={tenantId} />
+      ) : <main className="content">
         <div className="breadcrumbs">Administration <span>/</span> Utilisateurs</div>
         <div className="page-heading">
           <div>
             <span className="eyebrow">GESTION DES ACCÈS</span>
             <h1>Utilisateurs</h1>
-            <p className="muted">Gérez les comptes de {session.tenant?.name ?? 'votre société'}.</p>
+            <p className="muted">Gérez les comptes de {tenantName}.</p>
           </div>
-          <button className="button primary" onClick={() => setEditing(null)}>＋ Nouvel utilisateur</button>
+          <div className="page-actions">
+            {session.abilities.includes('incidents.update') && <button className="button secondary" onClick={() => setSection('incidents')}>Suivi des incidents</button>}
+            {session.abilities.includes('near_miss.view') && <button className="button secondary" onClick={() => setSection('near-miss')}>Presqu’accidents</button>}
+            {session.abilities.includes('breaches.manage') && <button className="button secondary" onClick={() => setSection('breaches')}>Violations</button>}
+            {session.abilities.includes('employees.manage') && <button className="button secondary" onClick={() => setSection('employees')}>Fiches employés</button>}
+            {isPlatformAdmin && <button className="button secondary" onClick={() => setSection('companies')}>Gérer les sociétés</button>}
+            <button className="button primary" onClick={() => setEditing(null)}>＋ Nouvel utilisateur</button>
+          </div>
         </div>
         <section className="panel">
           <div className="filters">
@@ -281,8 +341,9 @@ export default function App() {
           <div className="table-footer"><span>{total} utilisateur{total === 1 ? '' : 's'} dans votre société</span><div><button className="button secondary compact" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>Précédent</button><span>Page {page}</span><button className="button secondary compact" disabled={page * 100 >= total} onClick={() => setPage((value) => value + 1)}>Suivant</button></div></div>
         </section>
         <footer className="footer-note">Les PIN sont hachés côté serveur et ne sont jamais renvoyés à cette interface.</footer>
-      </main>
+      </main>}
       {editing !== undefined && <UserDialog user={editing} sites={sites} onClose={() => setEditing(undefined)} onSave={save} />}
+    </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { memo } from 'react';
 import { Pressable, View } from 'react-native';
 import { colors } from '@/constants/theme';
+import { useTheme } from '@/features/theme/ThemeProvider';
 import { formatDelay } from '@/lib/format';
 import { actionStatusLabel, priorityLabel, priorityTone } from '@/lib/labels';
 import type { ActionPriority, ActionStatus } from '@/types/api';
@@ -20,10 +21,11 @@ interface Props {
 }
 
 export const ActionCard = memo(function ActionCard({ index, priority, delayMinutes, responsible, description, status, overdue, onToggle }: Props) {
+  const theme = useTheme();
   const tone = priorityTone[priority];
   const done = status === 'done';
   return (
-    <View className="mb-2.5 flex-row rounded-2xl border border-border bg-surface p-3.5">
+    <View className="mb-2.5 flex-row rounded-2xl border border-border bg-surface p-3.5" style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}>
       <View className="mr-3 w-1 rounded-full" style={{ backgroundColor: tone }} />
       <View className="flex-1">
         <View className="flex-row items-center">
@@ -39,7 +41,7 @@ export const ActionCard = memo(function ActionCard({ index, priority, delayMinut
         </T>
         {responsible ? (
           <View className="mt-1.5 flex-row items-center">
-            <Feather name="user" size={12} color={colors.muted} />
+            <Feather name="user" size={12} color={theme.colors.muted} />
             <T variant="caption" className="ml-1">
               {responsible}
             </T>

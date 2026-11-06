@@ -7,6 +7,7 @@ import type { Severity } from '@/types/api';
 import { Card } from './ui/Card';
 import { SeverityBadge, StatusBadge } from './ui/Badge';
 import { T } from './ui/Text';
+import { useTheme } from '@/features/theme/ThemeProvider';
 
 interface Props {
   overline: string;
@@ -20,10 +21,11 @@ interface Props {
 }
 
 export const IncidentCard = memo(function IncidentCard({ overline, title, subtitle, severity, resolved, createdAt, icon = 'alert-triangle', onPress }: Props) {
-  const iconColor = resolved ? colors.green : severity === 'high' || severity === 'critical' ? colors.red : severity === 'medium' ? colors.orange : colors.muted;
+  const theme = useTheme();
+  const iconColor = resolved ? colors.green : severity === 'high' || severity === 'critical' ? colors.red : severity === 'medium' ? colors.orange : theme.colors.muted;
   return (
     <Card className="mb-2.5 flex-row items-center" onPress={onPress}>
-      <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-bg">
+      <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-bg" style={{ backgroundColor: theme.colors.bg }}>
         <Feather name={resolved ? 'check-circle' : icon} size={18} color={iconColor} />
       </View>
       <View className="flex-1">

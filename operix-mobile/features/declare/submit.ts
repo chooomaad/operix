@@ -65,6 +65,7 @@ export async function submitDeclaration(draft: Draft, analysis: Analysis | null,
       type: analysis?.category ?? 'Non-respect des règles',
       severity,
       description: base.description,
+      ...geo(draft),
     });
     invalidate('dashboard');
     return { reference: breach.reference, recordId: breach.id, kind: 'violation', offline: false, actions: [] };

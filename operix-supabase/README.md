@@ -10,7 +10,7 @@ Il reproduit à l'identique les routes `/api/v1` de l'ancienne API Laravel utili
 | **Supabase Auth** | comptes utilisateurs ; le **PIN est le mot de passe** du compte (bcrypt) |
 | **Supabase Storage** (bucket privé `operix-media`) | photos terrain, servies en URLs signées 24 h |
 | **Edge Function `api`** (Deno / TypeScript) | toutes les routes, permissions par rôle, isolation par entreprise, Operix AI, fiche PDF |
-| **Claude** (clé côté serveur uniquement) | analyse des déclarations ; moteur de règles de secours sans clé |
+| **Gemini** (clé côté serveur uniquement) | analyse des déclarations ; Claude optionnel et moteur de règles de secours |
 
 ## Déployer (≈ 10 minutes)
 
@@ -21,12 +21,40 @@ npm install                                    # installe la CLI Supabase et Den
 npx supabase login
 npx supabase link --project-ref <REF_DU_PROJET>
 
-npx supabase db push                           # crée le schéma operix et le bucket photos
-npx supabase secrets set ANTHROPIC_API_KEY=sk-ant-...   # optionnel : sans clé, moteur de règles
+npx supabase db push                           # applique les migrations, dont le GPS des infractions
 npx supabase functions deploy api --no-verify-jwt
 
 curl https://<REF_DU_PROJET>.supabase.co/functions/v1/api/v1/health   # → {"status":"ok"}
 ```
+
+### Activer Gemini (offre gratuite limitée)
+
+1. Créez une clé dans [Google AI Studio](https://aistudio.google.com/api-keys).
+2. Dans Supabase, ouvrez **Edge Functions → Secrets** et ajoutez `GEMINI_API_KEY` avec
+   cette clé comme valeur. La clé reste côté serveur; ne la mettez jamais dans le mobile.
+3. Configurez `OPERIX_AI_PROVIDER=gemini` et (facultatif)
+   `OPERIX_GEMINI_MODEL=gemini-3.5-flash-lite` comme secrets, puis redéployez `api`.
+
+Le niveau gratuit a des quotas et modèles disponibles qui peuvent évoluer; consultez
+[les tarifs Gemini](https://ai.google.dev/gemini-api/docs/pricing) avant usage. Google
+indique que les données du niveau gratuit peuvent être utilisées pour améliorer ses
+produits : **n'envoyez pas de données réelles ou confidentielles d'employés/incidents via
+ce niveau gratuit**. Utilisez des descriptions fictives pour tester. Le badge
+`OPERIX AI ENGINE` indique que le modèle a répondu; `MOTEUR DE RÈGLES` indique un repli
+(clé manquante, quota dépassé ou erreur du fournisseur).
+
+Claude reste disponible en option avec `OPERIX_AI_PROVIDER=anthropic`,
+`ANTHROPIC_API_KEY` et `OPERIX_AI_MODEL`. Sans clé configurée, le moteur de règles reste
+utilisable.
+
+### Mise à jour manuelle du GPS des infractions
+
+Si les migrations ne sont pas déployées avec la CLI, ouvrez **SQL Editor** dans Supabase
+et exécutez une fois le contenu de
+[`supabase/migrations/20261105000001_breach_geolocation.sql`](./supabase/migrations/20261105000001_breach_geolocation.sql).
+Puis déployez la version mise à jour de la fonction `api` et reconstruisez l'application
+mobile. Le GPS de premier plan sera alors enregistré aussi pour les violations. Une
+permission refusée n'empêche pas la déclaration; aucun suivi continu n'est effectué.
 
 Puis dans `operix-mobile/.env` :
 
@@ -60,9 +88,9 @@ Toutes sous `/functions/v1/api/v1`, jeton `Authorization: Bearer <token>` sauf l
 | Domaine | Routes |
 |---|---|
 | Auth | `POST /auth/login` · `GET /auth/me` · `POST /auth/logout` |
-| Administration | `GET /admin/sites` · `GET /admin/users` (search, role, site_id, status, page, per_page) · `POST /admin/users` · `PUT /admin/users/{id}` |
+| Administration | `GET /admin/sites` · `GET /admin/users` (search, role, site_id, status, page, per_page) · `POST /admin/users` · `PUT /admin/users/{id}` · `GET /admin/employees` (search, status, page, per_page) · `POST /admin/employees` · `POST /admin/employees/import` (500 employés maximum, insertion atomique) · `PUT /admin/employees/{id}` |
 | Tableau de bord | `GET /dashboard` · `/dashboard/recent-activity` · `/dashboard/top-zones` · `/dashboard/incident-stats` · `/safety-tracker` |
-| Incidents | `GET /incidents` (search, type, severity, status, from, to, page, per_page) · `POST /incidents` (multipart, photo) · `GET /incidents/{id}` · `PUT /incidents/{id}` |
+| Incidents | `GET /incidents` (search, type, severity, status, from, to, page, per_page) · `POST /incidents` (multipart, photo) · `GET /incidents/{id}` · `PUT /incidents/{id}` (clôture avec `incidents.close`) |
 | Operix AI | `POST /ai/incidents/analyze` (sans écriture) |
 | Plans d'actions | `POST /incidents/{id}/actions/deploy` (une fois, sinon 409) · `GET /incidents/{id}/actions` · `PUT /incidents/{id}/actions/{actionId}` · `GET /incident-actions` |
 | Near-miss, infractions | `GET /near-miss` · `POST /near-miss` · `GET /near-miss/{id}` · `POST /breaches` |
@@ -73,9 +101,32 @@ Toutes sous `/functions/v1/api/v1`, jeton `Authorization: Bearer <token>` sauf l
 Les permissions reprennent la matrice de `operix-api` (`app/Support/Permissions.php`), renvoyée
 au mobile dans `abilities`.
 
+La clôture d'un incident (`status: "closed"`) exige la permission `incidents.close`,
+réservée aux administrateurs de société et responsables HSSE. Déployez la fonction `api`
+après toute mise à jour des routes; le statut est stocké dans la base partagée par le web
+et le mobile.
+
 Le portail d’administration séparé se lance et se configure selon
 [`../operix-admin/README.md`](../operix-admin/README.md). Il nécessite un compte ayant la
-permission `users.manage` ; ses opérations restent limitées à la société du compte connecté.
+permission `users.manage` ; ses opérations restent limitées à la société du compte connecté,
+sauf pour les comptes explicitement autorisés à gérer la plateforme.
+
+### Activer l’administration multi-sociétés
+
+Sans Supabase CLI, ouvrez le **SQL Editor** :
+
+1. Exécutez [`supabase/migrations/20261106000001_platform_admins.sql`](./supabase/migrations/20261106000001_platform_admins.sql).
+2. Dans [`supabase/platform_admin_setup.sql`](./supabase/platform_admin_setup.sql), remplacez
+   `REMPLACER_PAR_VOTRE_MATRICULE` par le matricule de votre compte `company_admin` actif,
+   puis exécutez le script.
+3. Déployez la version mise à jour de l'Edge Function `api` avec votre processus habituel.
+   La migration et le déploiement backend sont requis avant que les nouvelles fonctions web
+   soient utilisables.
+
+Le compte plateforme reste aussi administrateur de sa société; son accès global est accordé
+séparément dans `operix.platform_admins`. Il peut créer et suspendre des sociétés, gérer leurs
+comptes, employés, incidents, presqu'accidents et violations. La suspension conserve les
+données; l'archivage des dossiers est logique et conserve l'historique.
 
 ## Sécurité
 
@@ -84,8 +135,12 @@ permission `users.manage` ; ses opérations restent limitées à la société du
 - Jetons d'API : seule leur empreinte SHA-256 est stockée ; la déconnexion révoque le jeton.
 - Chaque requête est filtrée par l'entreprise de l'utilisateur (testé : un compte TCN ne voit
   aucune donnée de Demo Company).
+- Les fiches employés sont consultables et modifiables depuis l'administration uniquement
+  avec la permission `employees.manage`; les départements sont associés à leur entreprise.
+- Le GPS de premier plan est joint aux incidents, near-miss et infractions quand l'utilisateur
+  autorise la localisation; aucun suivi continu en arrière-plan n'est activé.
 - Connexion limitée à 5 tentatives par minute et par IP ; analyse IA à 20 par minute.
-- Photos dans un bucket privé ; la clé Claude n'est jamais envoyée à l'application.
+- Photos dans un bucket privé ; les clés des fournisseurs IA ne sont jamais envoyées à l'application.
 
 ## Tester sur un téléphone Android en USB, tout en local (Windows)
 
@@ -128,7 +183,7 @@ npm test
 
 Lance un PostgreSQL local avec les schémas Supabase reproduits (`tests/supabase_stubs.sql`),
 applique migrations et seed, puis déroule la recette du HANDOFF : connexion,
-KPIs, analyse (règles et Claude simulé), déclaration avec photo et GPS, déploiement du plan et
+KPIs, analyse (règles et fournisseurs IA simulés), déclaration avec photo et GPS, déploiement du plan et
 409, statuts d'actions, notifications, near-miss, infractions, filtres, numérotation concurrente,
 rejeu hors-ligne, employés, PDF, gestion des utilisateurs (droits, création, recherche,
 modification et désactivation), isolation des entreprises, déconnexion, compte désactivé,
